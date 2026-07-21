@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal SMC</title>
+    <title>Trading Journal SMC & Backtest</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header>
         <h1>⚡ SMC Trading Journal</h1>
+        <!-- SELETTORE TAB: LIVE vs BACKTEST -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('live')">🔴 Trading Live</button>
+            <button class="tab-btn" onclick="switchTab('backtest')">🧪 Modulo Backtest</button>
+        </nav>
     </header>
 
     <main class="container">
@@ -26,27 +31,49 @@
             </div>
             <div class="card">
                 <h3>R:R Medio</h3>
-                <p id="avg-rr">0.00</p>
+                <p id="avg-rr">1:0.00</p>
             </div>
             <div class="card">
-                <h3>Profit/Loss Totale</h3>
+                <h3>P&L / R Totale</h3>
                 <p id="total-pl">€0.00</p>
+            </div>
+        </section>
+
+        <!-- 🧮 CALCOLATORE DI LOTTAGGIO INTEGRATO -->
+        <section class="form-container calculator-box">
+            <h2>🧮 Calcolatore Lottaggio Rapido</h2>
+            <div class="form-group-row">
+                <div>
+                    <label for="calc-balance">Capitale Conto (€/$)</label>
+                    <input type="number" id="calc-balance" placeholder="es. 10000" value="10000">
+                </div>
+                <div>
+                    <label for="calc-risk-pct">Rischio %</label>
+                    <input type="number" id="calc-risk-pct" placeholder="es. 1" value="1" step="0.1">
+                </div>
+                <div>
+                    <label for="calc-sl-pips">Stop Loss (Pips/Punti)</label>
+                    <input type="number" id="calc-sl-pips" placeholder="es. 15">
+                </div>
+                <div>
+                    <label>Lotti Consigliati</label>
+                    <div id="calc-result" class="calc-output">0.00 Lotti</div>
+                </div>
             </div>
         </section>
 
         <!-- 📝 FORM INSERIMENTO TRADE -->
         <section class="form-container">
-            <h2>Nuova Operazione</h2>
+            <h2 id="form-title">Nuova Operazione (Live)</h2>
             <form id="trade-form">
                 
-                <!-- 1. Dati Essenziali -->
                 <div class="form-group-row">
                     <div>
                         <label for="trade-date">Data e Ora</label>
                         <input type="datetime-local" id="trade-date" required>
                     </div>
                     <div>
-                        <label for="asset">Coppia / Asset</label>
+                        <label for="asset">Asset</label>
                         <select id="asset" required>
                             <option value="EURUSD">EURUSD</option>
                             <option value="GBPUSD">GBPUSD</option>
@@ -87,14 +114,14 @@
                         <input type="number" step="any" id="tp" placeholder="es. 1.0910" required>
                     </div>
                     <div>
-                        <label for="risk">Rischio % / Lotti</label>
-                        <input type="number" step="any" id="risk" placeholder="es. 1%" required>
+                        <label for="rr-auto">R:R Calcolato</label>
+                        <input type="text" id="rr-auto" placeholder="1:0.00" readonly class="readonly-input">
                     </div>
                 </div>
 
                 <div class="form-group-row">
                     <div>
-                        <label for="result">Risultato</label>
+                        <label for="result">Esito</label>
                         <select id="result" required>
                             <option value="WIN">WIN</option>
                             <option value="LOSS">LOSS</option>
@@ -102,21 +129,17 @@
                         </select>
                     </div>
                     <div>
-                        <label for="rr">R:R Effettivo</label>
-                        <input type="number" step="any" id="rr" placeholder="es. 3.0" required>
-                    </div>
-                    <div>
                         <label for="pnl">Profit / Loss (€/$)</label>
                         <input type="number" step="any" id="pnl" placeholder="es. 150 o -50" required>
                     </div>
                 </div>
 
-                <!-- 🧠 2. Modello Operativo SMC -->
+                <!-- 🧠 Confluenze SMC -->
                 <hr>
                 <h3>Confluenze SMC</h3>
                 <div class="form-group-row">
                     <div>
-                        <label for="poi">Punto di Interesse (POI)</label>
+                        <label for="poi">POI</label>
                         <select id="poi">
                             <option value="Order Block">Order Block (OB)</option>
                             <option value="Fair Value Gap">Fair Value Gap (FVG)</option>
@@ -125,47 +148,40 @@
                         </select>
                     </div>
                     <div>
-                        <label for="trigger">Conferma / Trigger</label>
+                        <label for="trigger">Trigger</label>
                         <select id="trigger">
-                            <option value="ChoCh">Change of Character (ChoCh)</option>
-                            <option value="MSS">Market Structure Shift (MSS)</option>
+                            <option value="ChoCh">ChoCh</option>
+                            <option value="MSS">MSS</option>
                             <option value="Rejection Wick">Rejection Wick</option>
                             <option value="SMT">Divergenza SMT</option>
                         </select>
                     </div>
                     <div>
-                        <label for="liquidity">Liquidità Presa</label>
+                        <label for="liquidity">Liquidità</label>
                         <select id="liquidity">
-                            <option value="Buy-side">Buy-side Liquidity</option>
-                            <option value="Sell-side">Sell-side Liquidity</option>
+                            <option value="Buy-side">Buy-side</option>
+                            <option value="Sell-side">Sell-side</option>
                             <option value="Entrambe">Entrambe</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="trend">Trend di Fondo</label>
-                        <select id="trend">
-                            <option value="Pro-Trend">Pro-Trend (Con la struttura)</option>
-                            <option value="Counter-Trend">Counter-Trend (Contro-tendenz)</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- 📸 3. Screenshot & Note -->
+                <!-- 🖼️ UPLOAD IMMAGINI DIRETTO -->
                 <hr>
-                <h3>Visual & Mindset</h3>
+                <h3>Visual & Note</h3>
                 <div class="form-group-row">
                     <div>
-                        <label for="img-before">Link Foto Prima (TradingView)</label>
-                        <input type="url" id="img-before" placeholder="https://www.tradingview.com/x/...">
+                        <label for="file-before">Foto Prima dell'ingresso</label>
+                        <input type="file" id="file-before" accept="image/*">
                     </div>
                     <div>
-                        <label for="img-after">Link Foto Dopo (TradingView)</label>
-                        <input type="url" id="img-after" placeholder="https://www.tradingview.com/x/...">
+                        <label for="file-after">Foto Dopo la chiusura</label>
+                        <input type="file" id="file-after" accept="image/*">
                     </div>
                 </div>
                 <div>
                     <label for="notes">Note & Mindset</label>
-                    <textarea id="notes" rows="3" placeholder="Come ti sentivi? Hai rispettato il piano?"></textarea>
+                    <textarea id="notes" rows="2" placeholder="Come ti sentivi? Note sul trade..."></textarea>
                 </div>
 
                 <button type="submit" id="save-btn">Salva Operazione</button>
@@ -174,22 +190,23 @@
 
         <!-- 📊 TABELLA OPERAZIONI -->
         <section class="table-container">
-            <h2>Storico Operazioni</h2>
+            <h2 id="table-title">Storico Operazioni Live</h2>
             <table>
                 <thead>
                     <tr>
                         <th>Data</th>
                         <th>Asset</th>
                         <th>Tipo</th>
-                        <th>SMC POI</th>
+                        <th>POI</th>
                         <th>R:R</th>
                         <th>P&L</th>
                         <th>Esito</th>
                         <th>Foto</th>
+                        <th>Azione</th>
                     </tr>
                 </thead>
                 <tbody id="trade-list">
-                    <!-- Qui verranno inseriti i trade via JavaScript -->
+                    <!-- Trade dinamici -->
                 </tbody>
             </table>
         </section>
@@ -198,4 +215,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>\
+</html>
