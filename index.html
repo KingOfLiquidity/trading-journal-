@@ -6,10 +6,24 @@
     <title>Trading Journal Complete</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body> 
+<body>
+
+    <!-- 📧 MODALE ACCESSO EMAIL -->
+    <div id="email-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>🔒 Configura Il Tuo Diario</h2>
+            <p>Inserisci la tua email per registrare la tua sessione e salvare i tuoi trade:</p>
+            <input type="email" id="user-email-input" placeholder="latuaemail@example.com" required>
+            <button id="save-email-btn">Accedi al Diario</button>
+        </div>
+    </div>
 
     <header>
-        <h1>⚡ Trading Journal Complete</h1>
+        <div class="user-bar">
+            <span>👤 Utente: <strong id="user-display-email">Non impostato</strong></span>
+            <button id="change-email-btn" class="mini-btn">Cambia Email</button>
+        </div>
+        <h1>⚡ SMC Trading Journal <span class="badge-pro">PRO</span></h1>
         <nav class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab('live')">🔴 Trading Live</button>
             <button class="tab-btn" onclick="switchTab('backtest')">🧪 Modulo Backtest</button>
@@ -20,19 +34,19 @@
         
         <!-- 📈 DASHBOARD STATISTICHE -->
         <section class="dashboard">
-            <div class="card">
+            <div class="card neon-border">
                 <h3>Win Rate</h3>
                 <p id="win-rate">0%</p>
             </div>
-            <div class="card">
+            <div class="card neon-border">
                 <h3>Profit Factor</h3>
                 <p id="profit-factor">0.00</p>
             </div>
-            <div class="card">
+            <div class="card neon-border">
                 <h3>R:R Medio</h3>
                 <p id="avg-rr">1:0.00</p>
             </div>
-            <div class="card">
+            <div class="card neon-border">
                 <h3>P&L Totale</h3>
                 <p id="total-pl">€0.00</p>
             </div>
@@ -162,7 +176,7 @@
                     </div>
                 </div>
 
-                <!-- 🧠 CONFLUENZE & MODELLI DI INGRESSO COMPLETI -->
+                <!-- 🧠 CONFLUENZE & MODELLI -->
                 <hr>
                 <h3>Confluenze & Modelli di Ingresso</h3>
                 <div class="form-group-row">
@@ -195,8 +209,8 @@
                     <div>
                         <label for="liquidity">Target / Caccia alla Liquidità</label>
                         <select id="liquidity">
-                            <option value="Buy-side Liquidity">BSL (Buy-side Liquidity / Max recenti)</option>
-                            <option value="Sell-side Liquidity">SSL (Sell-side Liquidity / Min recenti)</option>
+                            <option value="Buy-side Liquidity">BSL (Buy-side Liquidity)</option>
+                            <option value="Sell-side Liquidity">SSL (Sell-side Liquidity)</option>
                             <option value="Equal Highs/Lows">EQH / EQL (Massimi/Minimi uguali)</option>
                             <option value="Session High/Low">High/Low Sessione Precedente</option>
                             <option value="Trendline Liquidity">Liquidità della Trendline</option>
@@ -205,7 +219,7 @@
                     </div>
                 </div>
 
-                <!-- 🖼️ UPLOAD IMMAGINI DIRETTO -->
+                <!-- 🖼️ UPLOAD IMMAGINI DIRETTO & NOTE -->
                 <hr>
                 <h3>Visual & Note</h3>
                 <div class="form-group-row">
@@ -220,7 +234,7 @@
                 </div>
                 <div>
                     <label for="notes">Note & Mindset</label>
-                    <textarea id="notes" rows="2" placeholder="Stato d'animo, disciplina, errori commessi o note sul piano..."></textarea>
+                    <textarea id="notes" rows="3" placeholder="Stato d'animo, disciplina, errori commessi o note sulla gestione del trade..."></textarea>
                 </div>
 
                 <button type="submit" id="save-btn">Salva Operazione</button>
@@ -230,24 +244,27 @@
         <!-- 📊 TABELLA OPERAZIONI -->
         <section class="table-container">
             <h2 id="table-title">Storico Operazioni Live</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Asset</th>
-                        <th>Tipo</th>
-                        <th>POI</th>
-                        <th>R:R</th>
-                        <th>P&L</th>
-                        <th>Esito</th>
-                        <th>Foto</th>
-                        <th>Azione</th>
-                    </tr>
-                </thead>
-                <tbody id="trade-list">
-                    <!-- Trade dinamici -->
-                </tbody>
-            </table>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Asset</th>
+                            <th>Tipo</th>
+                            <th>POI</th>
+                            <th>R:R</th>
+                            <th>P&L</th>
+                            <th>Esito</th>
+                            <th>Note / Mindset</th>
+                            <th>Foto</th>
+                            <th>Azione</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-list">
+                        <!-- Trade dinamici -->
+                    </tbody>
+                </table>
+            </div>
         </section>
 
     </main>
