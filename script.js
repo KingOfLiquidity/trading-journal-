@@ -1,87 +1,192 @@
-// Recupera i trade salvati o crea un array vuoto
-let trades = JSON.parse(localStorage.getItem('smc_trades')) || [];
-
-const tradeForm = document.getElementById('trade-form');
-const tradeList = document.getElementById('trade-list');
-
-// Funzione per salvare e aggiornare l'interfaccia
-function updateUI() {
-    // Salva in memoria locale
-    localStorage.setItem('smc_trades', JSON.stringify(trades));
-    
-    // Pulisci tabella
-    tradeList.innerHTML = '';
-
-    let totalPL = 0;
-    let totalRR = 0;
-    let winCount = 0;
-
-    trades.forEach((trade, index) => {
-        totalPL += parseFloat(trade.pnl);
-        totalRR += parseFloat(trade.rr);
-        if (trade.result === 'WIN') winCount++;
-
-        const row = document.createElement('tr');
-        
-        let resultClass = 'be';
-        if(trade.result === 'WIN') resultClass = 'win';
-        if(trade.result === 'LOSS') resultClass = 'loss';
-
-        row.innerHTML = `
-            <td>${new Date(trade.date).toLocaleDateString()}</td>
-            <td><strong>${trade.asset}</strong></td>
-            <td>${trade.direction} (${trade.session})</td>
-            <td>${trade.poi}</td>
-            <td>1:${trade.rr}</td>
-            <td class="${resultClass}">${trade.pnl}€</td>
-            <td class="${resultClass}">${trade.result}</td>
-            <td>
-                ${trade.imgBefore ? `<a href="${trade.imgBefore}" target="_blank" style="color:#38bdf8">Prima</a>` : ''}
-                ${trade.imgAfter ? ` | <a href="${trade.imgAfter}" target="_blank" style="color:#38bdf8">Dopo</a>` : ''}
-            </td>
-        `;
-        tradeList.appendChild(row);
-    });
-
-    // Calcolo Statistiche Dashboard
-    const totalTrades = trades.length;
-    const winRate = totalTrades > 0 ? ((winCount / totalTrades) * 100).toFixed(1) : 0;
-    const avgRR = totalTrades > 0 ? (totalRR / totalTrades).toFixed(2) : '0.00';
-
-    document.getElementById('win-rate').innerText = `${winRate}%`;
-    document.getElementById('avg-rr').innerText = `1:${avgRR}`;
-    document.getElementById('total-pl').innerText = `${totalPL.toFixed(2)}€`;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-// Evento Invio Form
-tradeForm.addEventListener('submit', (e) => {
-    e.preventDefault();
+body {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 20px;
+}
 
-    const newTrade = {
-        date: document.getElementById('trade-date').value,
-        asset: document.getElementById('asset').value,
-        direction: document.getElementById('direction').value,
-        session: document.getElementById('session').value,
-        entry: document.getElementById('entry').value,
-        sl: document.getElementById('sl').value,
-        tp: document.getElementById('tp').value,
-        risk: document.getElementById('risk').value,
-        result: document.getElementById('result').value,
-        rr: document.getElementById('rr').value,
-        pnl: document.getElementById('pnl').value,
-        poi: document.getElementById('poi').value,
-        trigger: document.getElementById('trigger').value,
-        liquidity: document.getElementById('liquidity').value,
-        trend: document.getElementById('trend').value,
-        imgBefore: document.getElementById('img-before').value,
-        imgAfter: document.getElementById('img-after').value,
-        notes: document.getElementById('notes').value
-    };
+header {
+    text-align: center;
+    margin-bottom: 25px;
+}
 
-    trades.unshift(newTrade); // Aggiunge in cima alla lista
-    updateUI();
-    tradeForm.reset();
-});
+header h1 {
+    color: #38bdf8;
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
 
-// Carica i dati all'avvio
-updateUI();
+.nav-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.tab-btn {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: bold;
+    width: auto;
+    margin-top: 0;
+}
+
+.tab-btn.active {
+    background-color: #0284c7;
+    color: #fff;
+    border-color: #38bdf8;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background-color: #1e293b;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    text-align: center;
+}
+
+.card h3 {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.card p {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #38bdf8;
+}
+
+.form-container, .table-container {
+    background-color: #1e293b;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+}
+
+.calculator-box {
+    background-color: #162032;
+    border: 1px dashed #38bdf8;
+}
+
+.calc-output {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    padding: 10px;
+    border-radius: 6px;
+    color: #38bdf8;
+    font-weight: bold;
+    text-align: center;
+}
+
+.readonly-input {
+    background-color: #162032;
+    color: #38bdf8;
+    font-weight: bold;
+}
+
+h2 { margin-bottom: 15px; color: #f1f5f9; }
+h3 { margin: 15px 0 10px 0; color: #38bdf8; font-size: 1rem; }
+hr { border: 0; height: 1px; background: #334155; margin: 20px 0; }
+
+.form-group-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 5px;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+input[type="file"] {
+    padding: 7px;
+    font-size: 0.8rem;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background-color: #0284c7;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+button[type="submit"]:hover { background-color: #0369a1; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #334155;
+    font-size: 0.88rem;
+}
+
+th { background-color: #0f172a; color: #94a3b8; }
+
+.win { color: #4ade80; font-weight: bold; }
+.loss { color: #f87171; font-weight: bold; }
+.be { color: #facc15; font-weight: bold; }
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: #f87171;
+    cursor: pointer;
+    font-size: 1.1rem;
+    width: auto;
+    padding: 0;
+}
