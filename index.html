@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal SMC & Backtest</title>
+    <title>Trading Journal Complete</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header>
-        <h1>⚡ SMC Trading Journal</h1>
-        <!-- SELETTORE TAB: LIVE vs BACKTEST -->
+        <h1>⚡ Trading Journal Complete</h1>
         <nav class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab('live')">🔴 Trading Live</button>
             <button class="tab-btn" onclick="switchTab('backtest')">🧪 Modulo Backtest</button>
@@ -34,22 +33,22 @@
                 <p id="avg-rr">1:0.00</p>
             </div>
             <div class="card">
-                <h3>P&L / R Totale</h3>
+                <h3>P&L Totale</h3>
                 <p id="total-pl">€0.00</p>
             </div>
         </section>
 
-        <!-- 🧮 CALCOLATORE DI LOTTAGGIO INTEGRATO -->
+        <!-- 🧮 CALCOLATORE DI LOTTAGGIO -->
         <section class="form-container calculator-box">
             <h2>🧮 Calcolatore Lottaggio Rapido</h2>
             <div class="form-group-row">
                 <div>
                     <label for="calc-balance">Capitale Conto (€/$)</label>
-                    <input type="number" id="calc-balance" placeholder="es. 10000" value="10000">
+                    <input type="number" id="calc-balance" placeholder="10000" value="10000">
                 </div>
                 <div>
                     <label for="calc-risk-pct">Rischio %</label>
-                    <input type="number" id="calc-risk-pct" placeholder="es. 1" value="1" step="0.1">
+                    <input type="number" id="calc-risk-pct" placeholder="1" value="1" step="0.1">
                 </div>
                 <div>
                     <label for="calc-sl-pips">Stop Loss (Pips/Punti)</label>
@@ -73,13 +72,41 @@
                         <input type="datetime-local" id="trade-date" required>
                     </div>
                     <div>
-                        <label for="asset">Asset</label>
+                        <label for="asset">Asset / Strumento</label>
                         <select id="asset" required>
-                            <option value="EURUSD">EURUSD</option>
-                            <option value="GBPUSD">GBPUSD</option>
-                            <option value="AUDJPY">AUDJPY</option>
-                            <option value="DXY">DXY</option>
-                            <option value="OTHER">Altro</option>
+                            <optgroup label="Forex Major">
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="GBPUSD">GBP/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                                <option value="USDCHF">USD/CHF</option>
+                                <option value="USDCAD">USD/CAD</option>
+                                <option value="AUDUSD">AUD/USD</option>
+                                <option value="NZDUSD">NZD/USD</option>
+                            </optgroup>
+                            <optgroup label="Forex Minor & Cross">
+                                <option value="EURGBP">EUR/GBP</option>
+                                <option value="EURJPY">EUR/JPY</option>
+                                <option value="GBPJPY">GBP/JPY</option>
+                                <option value="AUDJPY">AUD/JPY</option>
+                                <option value="EURAUD">EUR/AUD</option>
+                                <option value="GBPAUD">GBP/AUD</option>
+                                <option value="CADJPY">CAD/JPY</option>
+                                <option value="CHFJPY">CHF/JPY</option>
+                            </optgroup>
+                            <optgroup label="Indici & Materie Prime">
+                                <option value="NAS100">Nasdaq (NAS100 / US100)</option>
+                                <option value="US30">Dow Jones (US30)</option>
+                                <option value="SPX500">S&P500 (SPX500)</option>
+                                <option value="GER40">DAX (GER40)</option>
+                                <option value="XAUUSD">Oro (XAU/USD)</option>
+                                <option value="XAGUSD">Argento (XAG/USD)</option>
+                                <option value="WTI">Petrolio (WTI / USOIL)</option>
+                            </optgroup>
+                            <optgroup label="Crypto">
+                                <option value="BTCUSD">Bitcoin (BTC/USD)</option>
+                                <option value="ETHUSD">Ethereum (ETH/USD)</option>
+                                <option value="SOLUSD">Solana (SOL/USD)</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div>
@@ -90,12 +117,13 @@
                         </select>
                     </div>
                     <div>
-                        <label for="session">Sessione</label>
+                        <label for="session">Sessione / Orario</label>
                         <select id="session" required>
                             <option value="Asia">Asia</option>
                             <option value="Londra">Londra</option>
                             <option value="New York">New York</option>
-                            <option value="Overlap">Overlap</option>
+                            <option value="Overlap LN/NY">Overlap Londra/NY</option>
+                            <option value="Fuori Sessione">Fuori Sessione</option>
                         </select>
                     </div>
                 </div>
@@ -103,15 +131,15 @@
                 <div class="form-group-row">
                     <div>
                         <label for="entry">Prezzo Ingresso</label>
-                        <input type="number" step="any" id="entry" placeholder="es. 1.0850" required>
+                        <input type="number" step="any" id="entry" placeholder="1.0850" required>
                     </div>
                     <div>
                         <label for="sl">Stop Loss (SL)</label>
-                        <input type="number" step="any" id="sl" placeholder="es. 1.0830" required>
+                        <input type="number" step="any" id="sl" placeholder="1.0830" required>
                     </div>
                     <div>
                         <label for="tp">Take Profit (TP)</label>
-                        <input type="number" step="any" id="tp" placeholder="es. 1.0910" required>
+                        <input type="number" step="any" id="tp" placeholder="1.0910" required>
                     </div>
                     <div>
                         <label for="rr-auto">R:R Calcolato</label>
@@ -134,34 +162,45 @@
                     </div>
                 </div>
 
-                <!-- 🧠 Confluenze SMC -->
+                <!-- 🧠 CONFLUENZE & MODELLI DI INGRESSO COMPLETI -->
                 <hr>
-                <h3>Confluenze SMC</h3>
+                <h3>Confluenze & Modelli di Ingresso</h3>
                 <div class="form-group-row">
                     <div>
-                        <label for="poi">POI</label>
+                        <label for="poi">Zona di Interesse (POI)</label>
                         <select id="poi">
                             <option value="Order Block">Order Block (OB)</option>
-                            <option value="Fair Value Gap">Fair Value Gap (FVG)</option>
-                            <option value="Liquidity Sweep">Liquidity Sweep</option>
-                            <option value="Breaker Block">Breaker Block</option>
+                            <option value="Fair Value Gap">Fair Value Gap / FVG / Imbalance</option>
+                            <option value="Liquidity Sweep">Liquidity Sweep / Presa di Liquidità</option>
+                            <option value="Breaker / Mitigation">Breaker / Mitigation Block</option>
+                            <option value="Supporto / Resistenza">Supporto / Resistenza Classica</option>
+                            <option value="Fibonacci Level">Livello Fibonacci (OOTE/61.8%/78.6%)</option>
+                            <option value="Trendline">Trendline / Canale</option>
+                            <option value="VWAP / Media Mobile">VWAP / Media Mobile (EMA)</option>
                         </select>
                     </div>
                     <div>
-                        <label for="trigger">Trigger</label>
+                        <label for="trigger">Trigger / Conferma Inserimento</label>
                         <select id="trigger">
-                            <option value="ChoCh">ChoCh</option>
-                            <option value="MSS">MSS</option>
-                            <option value="Rejection Wick">Rejection Wick</option>
-                            <option value="SMT">Divergenza SMT</option>
+                            <option value="ChoCh">ChoCh (Change of Character)</option>
+                            <option value="MSS">MSS (Market Structure Shift)</option>
+                            <option value="BOS">BOS (Break of Structure)</option>
+                            <option value="Rejection Wick">Rejection Wick / Pinbar</option>
+                            <option value="Engulfing">Candela Engulfing</option>
+                            <option value="Divergenza SMT/RSI">Divergenza (SMT / RSI / MACD)</option>
+                            <option value="Limit Order Direct">Ordine Limite Diretto (Touch)</option>
+                            <option value="Breakout Bar">Breakout della Candela precedente</option>
                         </select>
                     </div>
                     <div>
-                        <label for="liquidity">Liquidità</label>
+                        <label for="liquidity">Target / Caccia alla Liquidità</label>
                         <select id="liquidity">
-                            <option value="Buy-side">Buy-side</option>
-                            <option value="Sell-side">Sell-side</option>
-                            <option value="Entrambe">Entrambe</option>
+                            <option value="Buy-side Liquidity">BSL (Buy-side Liquidity / Max recenti)</option>
+                            <option value="Sell-side Liquidity">SSL (Sell-side Liquidity / Min recenti)</option>
+                            <option value="Equal Highs/Lows">EQH / EQL (Massimi/Minimi uguali)</option>
+                            <option value="Session High/Low">High/Low Sessione Precedente</option>
+                            <option value="Trendline Liquidity">Liquidità della Trendline</option>
+                            <option value="Fix RR Target">Target Fisso a R:R (es. 1:3)</option>
                         </select>
                     </div>
                 </div>
@@ -181,7 +220,7 @@
                 </div>
                 <div>
                     <label for="notes">Note & Mindset</label>
-                    <textarea id="notes" rows="2" placeholder="Come ti sentivi? Note sul trade..."></textarea>
+                    <textarea id="notes" rows="2" placeholder="Stato d'animo, disciplina, errori commessi o note sul piano..."></textarea>
                 </div>
 
                 <button type="submit" id="save-btn">Salva Operazione</button>
