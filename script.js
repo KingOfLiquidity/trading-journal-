@@ -1,12 +1,58 @@
-let currentTab = 'live'; // 'live' oppure 'backtest'
+let currentTab = 'live';
+let userEmail = localStorage.getItem('journal_user_email') || '';
 
-let liveTrades = JSON.parse(localStorage.getItem('smc_live_trades')) || [];
-let backtestTrades = JSON.parse(localStorage.getItem('smc_backtest_trades')) || [];
+// GESTIONE MODALE EMAIL
+const emailModal = document.getElementById('email-modal');
+const userEmailInput = document.getElementById('user-email-input');
+const saveEmailBtn = document.getElementById('save-email-btn');
+const userDisplayEmail = document.getElementById('user-display-email');
+const changeEmailBtn = document.getElementById('change-email-btn');
 
-const tradeForm = document.getElementById('trade-form');
-const tradeList = document.getElementById('trade-list');
+function checkEmail() {
+    if (!userEmail) {
+        emailModal.style.display = 'flex';
+    } else {
+        emailModal.style.display = 'none';
+        userDisplayEmail.innerText = userEmail;
+    }
+}
 
-// CAMBIO TAB (Live / Backtest)
+saveEmailBtn.addEventListener('click', () => {
+    const val = userEmailInput.value.trim();
+    if (val && val.includes('@')) {
+        userEmail = val;
+        localStorage.setItem('journal_user_email', userEmail);
+        checkEmail();
+        updateUI();
+    } else {
+        alert("Inserisci un'email valida!");
+    }
+});
+
+changeEmailBtn.addEventListener('click', () => {
+    userEmail = '';
+    localStorage.removeItem('journal_user_email');
+    checkEmail();
+});
+
+checkEmail();
+
+// DATI SALVATI CHIAVE DINAMICA UTENTE
+function getStorageKey(type) {
+    return `smc_${userEmail}_${type}_trades`;
+}
+
+function getTrades(type) {
+    if (!userEmail) return [];
+    return JSON.parse(localStorage.getItem(getStorageKey(type))) || [];
+}
+
+function saveTrades(type, data) {
+    if (!userEmail) return;
+    localStorage.setItem(getStorageKey(type), JSON.stringify(data));
+}
+
+// CAMBIO TAB
 function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -28,7 +74,6 @@ function calculateRR() {
     const entry = parseFloat(document.getElementById('entry').value);
     const sl = parseFloat(document.getElementById('sl').value);
     const tp = parseFloat(document.getElementById('tp').value);
-    const direction = document.getElementById('direction').value;
 
     if (entry && sl && tp) {
         let risk = Math.abs(entry - sl);
@@ -40,14 +85,14 @@ function calculateRR() {
         }
     }
     document.getElementById('rr-auto').value = "1:0.00";
-    return 0;
+    return "0.00";
 }
 
-['entry', 'sl', 'tp', 'direction'].forEach(id => {
+['entry', 'sl', 'tp'].forEach(id => {
     document.getElementById(id).addEventListener('input', calculateRR);
 });
 
-// CALCOLATORE DI LOTTAGGIO
+// CALCOLATORE LOTTAGGIO
 function calculateLots() {
     const balance = parseFloat(document.getElementById('calc-balance').value);
     const riskPct = parseFloat(document.getElementById('calc-risk-pct').value);
@@ -55,7 +100,6 @@ function calculateLots() {
 
     if (balance && riskPct && slPips && slPips > 0) {
         const riskAmount = balance * (riskPct / 100);
-        // Calcolo indicativo basato su $10/pip per 1 lotto standard Forex
         const lotSize = (riskAmount / (slPips * 10)).toFixed(2);
         document.getElementById('calc-result').innerText = `${lotSize} Lotti`;
     } else {
@@ -67,33 +111,36 @@ function calculateLots() {
     document.getElementById(id).addEventListener('input', calculateLots);
 });
 
-// CONVERTITORE IMMAGINI (Base64 per salvare localmente)
-function fileToBase64(file) {
+// CONVERTITORE IMMAGINI A LINK APRIBILE
+function fileToDataURL(file) {
     return new Promise((resolve) => {
         if (!file) resolve(null);
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
+        reader.onload = (e) => resolve(e.target.result);
         reader.readAsDataURL(file);
     });
 }
 
+// APRI FOTO IN SCHEDA
+function openImage(dataUrl) {
+    const w = window.open();
+    w.document.write(`<img src="${dataUrl}" style="max-width:100%; height:auto; background:#000;">`);
+}
+
 // ELIMINAZIONE TRADE
 function deleteTrade(index) {
-    if(confirm("Vuoi davvero eliminare questa operazione?")) {
-        if (currentTab === 'live') {
-            liveTrades.splice(index, 1);
-            localStorage.setItem('smc_live_trades', JSON.stringify(liveTrades));
-        } else {
-            backtestTrades.splice(index, 1);
-            localStorage.setItem('smc_backtest_trades', JSON.stringify(backtestTrades));
-        }
+    if(confirm("Vuoi eliminare questa operazione?")) {
+        let trades = getTrades(currentTab);
+        trades.splice(index, 1);
+        saveTrades(currentTab, trades);
         updateUI();
     }
 }
 
-// AGGIORNA INTERFACCIA E DASHBOARD
+// UPDATE UI
 function updateUI() {
-    const trades = currentTab === 'live' ? liveTrades : backtestTrades;
+    const trades = getTrades(currentTab);
+    const tradeList = document.getElementById('trade-list');
     tradeList.innerHTML = '';
 
     let totalPL = 0;
@@ -118,9 +165,11 @@ function updateUI() {
             <td>1:${trade.rr}</td>
             <td class="${resultClass}">${trade.pnl}€</td>
             <td class="${resultClass}">${trade.result}</td>
+            <td class="notes-cell" title="${trade.notes || ''}">${trade.notes || '-'}</td>
             <td>
-                ${trade.imgBefore ? `<a href="${trade.imgBefore}" target="_blank" style="color:#38bdf8">Prima</a>` : '-'}
-                ${trade.imgAfter ? ` | <a href="${trade.imgAfter}" target="_blank" style="color:#38bdf8">Dopo</a>` : ''}
+                ${trade.imgBefore ? `<button class="img-btn" onclick="openImage('${trade.imgBefore}')">Prima</button>` : ''}
+                ${trade.imgAfter ? ` <button class="img-btn" onclick="openImage('${trade.imgAfter}')">Dopo</button>` : ''}
+                ${!trade.imgBefore && !trade.imgAfter ? '-' : ''}
             </td>
             <td><button class="delete-btn" onclick="deleteTrade(${index})">🗑️</button></td>
         `;
@@ -138,15 +187,15 @@ function updateUI() {
     document.getElementById('total-pl').innerText = `${totalPL.toFixed(2)}€`;
 }
 
-// INVIAR FORM
-tradeForm.addEventListener('submit', async (e) => {
+// INVIA FORM
+document.getElementById('trade-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const fileBefore = document.getElementById('file-before').files[0];
     const fileAfter = document.getElementById('file-after').files[0];
 
-    const imgBeforeBase64 = await fileToBase64(fileBefore);
-    const imgAfterBase64 = await fileToBase64(fileAfter);
+    const imgBeforeBase64 = await fileToDataURL(fileBefore);
+    const imgAfterBase64 = await fileToDataURL(fileAfter);
 
     const rrRatio = calculateRR();
 
@@ -169,16 +218,12 @@ tradeForm.addEventListener('submit', async (e) => {
         notes: document.getElementById('notes').value
     };
 
-    if (currentTab === 'live') {
-        liveTrades.unshift(newTrade);
-        localStorage.setItem('smc_live_trades', JSON.stringify(liveTrades));
-    } else {
-        backtestTrades.unshift(newTrade);
-        localStorage.setItem('smc_backtest_trades', JSON.stringify(backtestTrades));
-    }
+    let trades = getTrades(currentTab);
+    trades.unshift(newTrade);
+    saveTrades(currentTab, trades);
 
     updateUI();
-    tradeForm.reset();
+    document.getElementById('trade-form').reset();
     document.getElementById('rr-auto').value = "1:0.00";
 });
 
