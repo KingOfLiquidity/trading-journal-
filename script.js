@@ -1,192 +1,185 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+let currentTab = 'live'; // 'live' oppure 'backtest'
+
+let liveTrades = JSON.parse(localStorage.getItem('smc_live_trades')) || [];
+let backtestTrades = JSON.parse(localStorage.getItem('smc_backtest_trades')) || [];
+
+const tradeForm = document.getElementById('trade-form');
+const tradeList = document.getElementById('trade-list');
+
+// CAMBIO TAB (Live / Backtest)
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    
+    if(tab === 'live') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('form-title').innerText = "Nuova Operazione (Live)";
+        document.getElementById('table-title').innerText = "Storico Operazioni Live";
+    } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('form-title').innerText = "Nuova Operazione (Backtest)";
+        document.getElementById('table-title').innerText = "Storico Operazioni Backtest";
+    }
+    updateUI();
 }
 
-body {
-    background-color: #0f172a;
-    color: #f8fafc;
-    padding: 20px;
+// CALCOLO AUTOMATICO R:R
+function calculateRR() {
+    const entry = parseFloat(document.getElementById('entry').value);
+    const sl = parseFloat(document.getElementById('sl').value);
+    const tp = parseFloat(document.getElementById('tp').value);
+    const direction = document.getElementById('direction').value;
+
+    if (entry && sl && tp) {
+        let risk = Math.abs(entry - sl);
+        let reward = Math.abs(tp - entry);
+        if (risk > 0) {
+            let rrRatio = (reward / risk).toFixed(2);
+            document.getElementById('rr-auto').value = `1:${rrRatio}`;
+            return rrRatio;
+        }
+    }
+    document.getElementById('rr-auto').value = "1:0.00";
+    return 0;
 }
 
-header {
-    text-align: center;
-    margin-bottom: 25px;
+['entry', 'sl', 'tp', 'direction'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calculateRR);
+});
+
+// CALCOLATORE DI LOTTAGGIO
+function calculateLots() {
+    const balance = parseFloat(document.getElementById('calc-balance').value);
+    const riskPct = parseFloat(document.getElementById('calc-risk-pct').value);
+    const slPips = parseFloat(document.getElementById('calc-sl-pips').value);
+
+    if (balance && riskPct && slPips && slPips > 0) {
+        const riskAmount = balance * (riskPct / 100);
+        // Calcolo indicativo basato su $10/pip per 1 lotto standard Forex
+        const lotSize = (riskAmount / (slPips * 10)).toFixed(2);
+        document.getElementById('calc-result').innerText = `${lotSize} Lotti`;
+    } else {
+        document.getElementById('calc-result').innerText = `0.00 Lotti`;
+    }
 }
 
-header h1 {
-    color: #38bdf8;
-    font-size: 2rem;
-    margin-bottom: 15px;
+['calc-balance', 'calc-risk-pct', 'calc-sl-pips'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calculateLots);
+});
+
+// CONVERTITORE IMMAGINI (Base64 per salvare localmente)
+function fileToBase64(file) {
+    return new Promise((resolve) => {
+        if (!file) resolve(null);
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+    });
 }
 
-.nav-tabs {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
+// ELIMINAZIONE TRADE
+function deleteTrade(index) {
+    if(confirm("Vuoi davvero eliminare questa operazione?")) {
+        if (currentTab === 'live') {
+            liveTrades.splice(index, 1);
+            localStorage.setItem('smc_live_trades', JSON.stringify(liveTrades));
+        } else {
+            backtestTrades.splice(index, 1);
+            localStorage.setItem('smc_backtest_trades', JSON.stringify(backtestTrades));
+        }
+        updateUI();
+    }
 }
 
-.tab-btn {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    color: #94a3b8;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: bold;
-    width: auto;
-    margin-top: 0;
+// AGGIORNA INTERFACCIA E DASHBOARD
+function updateUI() {
+    const trades = currentTab === 'live' ? liveTrades : backtestTrades;
+    tradeList.innerHTML = '';
+
+    let totalPL = 0;
+    let totalRR = 0;
+    let winCount = 0;
+    let lossCount = 0;
+
+    trades.forEach((trade, index) => {
+        totalPL += parseFloat(trade.pnl || 0);
+        totalRR += parseFloat(trade.rr || 0);
+        if (trade.result === 'WIN') winCount++;
+        if (trade.result === 'LOSS') lossCount++;
+
+        const row = document.createElement('tr');
+        let resultClass = trade.result === 'WIN' ? 'win' : (trade.result === 'LOSS' ? 'loss' : 'be');
+
+        row.innerHTML = `
+            <td>${trade.date ? new Date(trade.date).toLocaleDateString() : '-'}</td>
+            <td><strong>${trade.asset}</strong></td>
+            <td>${trade.direction}</td>
+            <td>${trade.poi}</td>
+            <td>1:${trade.rr}</td>
+            <td class="${resultClass}">${trade.pnl}€</td>
+            <td class="${resultClass}">${trade.result}</td>
+            <td>
+                ${trade.imgBefore ? `<a href="${trade.imgBefore}" target="_blank" style="color:#38bdf8">Prima</a>` : '-'}
+                ${trade.imgAfter ? ` | <a href="${trade.imgAfter}" target="_blank" style="color:#38bdf8">Dopo</a>` : ''}
+            </td>
+            <td><button class="delete-btn" onclick="deleteTrade(${index})">🗑️</button></td>
+        `;
+        tradeList.appendChild(row);
+    });
+
+    const totalTrades = trades.length;
+    const winRate = totalTrades > 0 ? ((winCount / totalTrades) * 100).toFixed(1) : 0;
+    const avgRR = totalTrades > 0 ? (totalRR / totalTrades).toFixed(2) : '0.00';
+    const profitFactor = lossCount > 0 ? (winCount / lossCount).toFixed(2) : winCount;
+
+    document.getElementById('win-rate').innerText = `${winRate}%`;
+    document.getElementById('avg-rr').innerText = `1:${avgRR}`;
+    document.getElementById('profit-factor').innerText = profitFactor;
+    document.getElementById('total-pl').innerText = `${totalPL.toFixed(2)}€`;
 }
 
-.tab-btn.active {
-    background-color: #0284c7;
-    color: #fff;
-    border-color: #38bdf8;
-}
+// INVIAR FORM
+tradeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-}
+    const fileBefore = document.getElementById('file-before').files[0];
+    const fileAfter = document.getElementById('file-after').files[0];
 
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
+    const imgBeforeBase64 = await fileToBase64(fileBefore);
+    const imgAfterBase64 = await fileToBase64(fileAfter);
 
-.card {
-    background-color: #1e293b;
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid #334155;
-    text-align: center;
-}
+    const rrRatio = calculateRR();
 
-.card h3 {
-    font-size: 0.9rem;
-    color: #94a3b8;
-    margin-bottom: 8px;
-}
+    const newTrade = {
+        date: document.getElementById('trade-date').value,
+        asset: document.getElementById('asset').value,
+        direction: document.getElementById('direction').value,
+        session: document.getElementById('session').value,
+        entry: document.getElementById('entry').value,
+        sl: document.getElementById('sl').value,
+        tp: document.getElementById('tp').value,
+        result: document.getElementById('result').value,
+        rr: rrRatio,
+        pnl: document.getElementById('pnl').value,
+        poi: document.getElementById('poi').value,
+        trigger: document.getElementById('trigger').value,
+        liquidity: document.getElementById('liquidity').value,
+        imgBefore: imgBeforeBase64,
+        imgAfter: imgAfterBase64,
+        notes: document.getElementById('notes').value
+    };
 
-.card p {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #38bdf8;
-}
+    if (currentTab === 'live') {
+        liveTrades.unshift(newTrade);
+        localStorage.setItem('smc_live_trades', JSON.stringify(liveTrades));
+    } else {
+        backtestTrades.unshift(newTrade);
+        localStorage.setItem('smc_backtest_trades', JSON.stringify(backtestTrades));
+    }
 
-.form-container, .table-container {
-    background-color: #1e293b;
-    padding: 25px;
-    border-radius: 12px;
-    border: 1px solid #334155;
-}
+    updateUI();
+    tradeForm.reset();
+    document.getElementById('rr-auto').value = "1:0.00";
+});
 
-.calculator-box {
-    background-color: #162032;
-    border: 1px dashed #38bdf8;
-}
-
-.calc-output {
-    background-color: #0f172a;
-    border: 1px solid #334155;
-    padding: 10px;
-    border-radius: 6px;
-    color: #38bdf8;
-    font-weight: bold;
-    text-align: center;
-}
-
-.readonly-input {
-    background-color: #162032;
-    color: #38bdf8;
-    font-weight: bold;
-}
-
-h2 { margin-bottom: 15px; color: #f1f5f9; }
-h3 { margin: 15px 0 10px 0; color: #38bdf8; font-size: 1rem; }
-hr { border: 0; height: 1px; background: #334155; margin: 20px 0; }
-
-.form-group-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-label {
-    display: block;
-    font-size: 0.85rem;
-    color: #94a3b8;
-    margin-bottom: 5px;
-}
-
-input, select, textarea {
-    width: 100%;
-    padding: 10px;
-    background-color: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 0.9rem;
-}
-
-input[type="file"] {
-    padding: 7px;
-    font-size: 0.8rem;
-}
-
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #38bdf8;
-}
-
-button[type="submit"] {
-    width: 100%;
-    padding: 12px;
-    background-color: #0284c7;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-top: 15px;
-}
-
-button[type="submit"]:hover { background-color: #0369a1; }
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
-
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #334155;
-    font-size: 0.88rem;
-}
-
-th { background-color: #0f172a; color: #94a3b8; }
-
-.win { color: #4ade80; font-weight: bold; }
-.loss { color: #f87171; font-weight: bold; }
-.be { color: #facc15; font-weight: bold; }
-
-.delete-btn {
-    background: none;
-    border: none;
-    color: #f87171;
-    cursor: pointer;
-    font-size: 1.1rem;
-    width: auto;
-    padding: 0;
-}
+updateUI();
