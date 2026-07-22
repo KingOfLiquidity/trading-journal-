@@ -1,0 +1,159 @@
+:root {
+    --bg-color: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --accent: #38bdf8;
+    --accent-hover: #0284c7;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --win-color: #22c55e;
+    --loss-color: #ef4444;
+    --be-color: #eab308;
+    --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    padding: 15px;
+    line-height: 1.5;
+}
+
+.container { max-width: 1100px; margin: 0 auto; }
+
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border-bottom: 2px solid var(--card-border);
+    padding-bottom: 20px;
+    margin-bottom: 25px;
+}
+
+@media(min-width: 768px) {
+    header { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+}
+
+h1 { font-size: 1.6rem; color: var(--accent); margin-bottom: 8px; }
+
+.email-header {
+    max-width: 280px;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.card h2 {
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 8px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+@media(min-width: 600px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(min-width: 900px) { .form-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.full-width { grid-column: 1 / -1; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+
+label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+
+input, select, textarea {
+    background-color: var(--bg-color);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.actions-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+
+button {
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.btn-primary { background-color: var(--accent); color: #0b0f19; }
+.btn-excel { background-color: #107c41; color: #fff; }
+.btn-secondary { background-color: var(--card-border); color: var(--text-main); }
+.btn-danger { background-color: var(--loss-color); color: #fff; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+@media(min-width: 768px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.stat-card {
+    background-color: var(--bg-color);
+    border: 1px solid var(--card-border);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-card .val { font-size: 1.3rem; font-weight: bold; color: var(--accent); }
+.stat-card .lbl { font-size: 0.75rem; color: var(--text-muted); }
+
+.result-box {
+    background-color: rgba(56, 189, 248, 0.08);
+    border: 1px dashed var(--accent);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 15px;
+    text-align: center;
+}
+
+.table-responsive { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 650px; }
+
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--card-border); }
+
+.badge { padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+.badge-win { background-color: rgba(34, 197, 94, 0.2); color: var(--win-color); }
+.badge-loss { background-color: rgba(239, 68, 68, 0.2); color: var(--loss-color); }
+.badge-be { background-color: rgba(234, 179, 8, 0.2); color: var(--be-color); }
+
+.img-thumb {
+    width: 36px; height: 36px; border-radius: 4px; object-fit: cover; cursor: pointer;
+}
+
+.modal {
+    display: none; position: fixed; z-index: 1000;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.85);
+    justify-content: center; align-items: center;
+}
+
+.modal img { max-width: 90%; max-height: 85vh; border-radius: 8px; }
