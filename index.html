@@ -3,272 +3,404 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal Complete</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Trading Journal Pro</title>
+    <!-- SheetJS per l'esportazione in Excel (.xlsx) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Supabase SDK per la persistenza Cloud -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --win-color: #22c55e;
+            --loss-color: #ef4444;
+            --be-color: #eab308;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--accent);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        input, select, textarea {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .actions-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-primary { background-color: var(--accent); color: #0f172a; }
+        .btn-excel { background-color: #107c41; color: white; }
+        .btn-secondary { background-color: var(--border); color: var(--text-main); }
+        .btn-danger { background-color: var(--loss-color); color: white; }
+
+        /* Table Styling */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .badge-win { background-color: rgba(34, 197, 94, 0.2); color: var(--win-color); }
+        .badge-loss { background-color: rgba(239, 68, 68, 0.2); color: var(--loss-color); }
+        .badge-be { background-color: rgba(234, 179, 8, 0.2); color: var(--be-color); }
+
+        .img-preview {
+            max-width: 60px;
+            max-height: 40px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- 📧 MODALE ACCESSO EMAIL -->
-    <div id="email-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h2>🔒 Configura Il Tuo Diario</h2>
-            <p>Inserisci la tua email per registrare la tua sessione e salvare i tuoi trade:</p>
-            <input type="email" id="user-email-input" placeholder="latuaemail@example.com" required>
-            <button id="save-email-btn">Accedi al Diario</button>
-        </div>
-    </div>
-
+<div class="container">
     <header>
-        <div class="user-bar">
-            <span>👤 Utente: <strong id="user-display-email">Non impostato</strong></span>
-            <button id="change-email-btn" class="mini-btn">Cambia Email</button>
+        <h1>📊 Trading Journal</h1>
+        <div class="actions-bar" style="margin-top:0;">
+            <button class="btn-excel" onclick="exportToExcel()">📥 Esporta Excel (.xlsx)</button>
+            <button class="btn-secondary" onclick="exportJSONBackup()">💾 Backup JSON</button>
+            <input type="file" id="importFile" style="display:none" onchange="importJSONBackup(event)">
+            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Carica Backup</button>
         </div>
-        <h1>⚡ SMC Trading Journal <span class="badge-pro">PRO</span></h1>
-        <nav class="nav-tabs">
-            <button class="tab-btn active" onclick="switchTab('live')">🔴 Trading Live</button>
-            <button class="tab-btn" onclick="switchTab('backtest')">🧪 Modulo Backtest</button>
-        </nav>
     </header>
 
-    <main class="container">
-        
-        <!-- 📈 DASHBOARD STATISTICHE -->
-        <section class="dashboard">
-            <div class="card neon-border">
-                <h3>Win Rate</h3>
-                <p id="win-rate">0%</p>
+    <!-- FORM INSERIMENTO TRADE -->
+    <div class="card">
+        <h2>Nuova Operazione</h2>
+        <form id="tradeForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="date">Data</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="asset">Asset / Coppia</label>
+                    <input type="text" id="asset" placeholder="es. EUR/USD, AUD/JPY, Oro" required>
+                </div>
+                <div class="form-group">
+                    <label for="strategy">Nome Strategia</label>
+                    <input type="text" id="strategy" placeholder="es. Scalp Oro, Swing AUD/CAD" required>
+                </div>
+                <div class="form-group">
+                    <label for="direction">Direzione</label>
+                    <select id="direction">
+                        <option value="LONG">LONG 📈</option>
+                        <option value="SHORT">SHORT 📉</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="result">Esito</label>
+                    <select id="result">
+                        <option value="WIN">WIN 🟢</option>
+                        <option value="LOSS">LOSS 🔴</option>
+                        <option value="BE">BE 🟡</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="rr">R : R (Rischio/Rendimento)</label>
+                    <input type="number" id="rr" step="0.1" placeholder="es. 2.5" required>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="image">URL Immagine / Screenshot (TradingView)</label>
+                    <input type="url" id="image" placeholder="https://www.tradingview.com/x/...">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="notes">Note Brevi / Confluenze</label>
+                    <textarea id="notes" rows="2" placeholder="Note veloci sul trade..."></textarea>
+                </div>
             </div>
-            <div class="card neon-border">
-                <h3>Profit Factor</h3>
-                <p id="profit-factor">0.00</p>
+            <div class="actions-bar">
+                <button type="submit" class="btn-primary">➕ Salva Trade</button>
             </div>
-            <div class="card neon-border">
-                <h3>R:R Medio</h3>
-                <p id="avg-rr">1:0.00</p>
-            </div>
-            <div class="card neon-border">
-                <h3>P&L Totale</h3>
-                <p id="total-pl">€0.00</p>
-            </div>
-        </section>
+        </form>
+    </div>
 
-        <!-- 🧮 CALCOLATORE DI LOTTAGGIO -->
-        <section class="form-container calculator-box">
-            <h2>🧮 Calcolatore Lottaggio Rapido</h2>
-            <div class="form-group-row">
-                <div>
-                    <label for="calc-balance">Capitale Conto (€/$)</label>
-                    <input type="number" id="calc-balance" placeholder="10000" value="10000">
-                </div>
-                <div>
-                    <label for="calc-risk-pct">Rischio %</label>
-                    <input type="number" id="calc-risk-pct" placeholder="1" value="1" step="0.1">
-                </div>
-                <div>
-                    <label for="calc-sl-pips">Stop Loss (Pips/Punti)</label>
-                    <input type="number" id="calc-sl-pips" placeholder="es. 15">
-                </div>
-                <div>
-                    <label>Lotti Consigliati</label>
-                    <div id="calc-result" class="calc-output">0.00 Lotti</div>
-                </div>
-            </div>
-        </section>
+    <!-- TABELLA STORICO -->
+    <div class="card">
+        <h2>Storico Operazioni</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Asset</th>
+                        <th>Strategia</th>
+                        <th>Direzione</th>
+                        <th>Esito</th>
+                        <th>R:R</th>
+                        <th>Chart</th>
+                        <th>Note</th>
+                        <th>Azione</th>
+                    </tr>
+                </thead>
+                <tbody id="tradeTableBody">
+                    <!-- I dati inseriti compaiono qui -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-        <!-- 📝 FORM INSERIMENTO TRADE -->
-        <section class="form-container">
-            <h2 id="form-title">Nuova Operazione (Live)</h2>
-            <form id="trade-form">
-                
-                <div class="form-group-row">
-                    <div>
-                        <label for="trade-date">Data e Ora</label>
-                        <input type="datetime-local" id="trade-date" required>
-                    </div>
-                    <div>
-                        <label for="asset">Asset / Strumento</label>
-                        <select id="asset" required>
-                            <optgroup label="Forex Major">
-                                <option value="EURUSD">EUR/USD</option>
-                                <option value="GBPUSD">GBP/USD</option>
-                                <option value="USDJPY">USD/JPY</option>
-                                <option value="USDCHF">USD/CHF</option>
-                                <option value="USDCAD">USD/CAD</option>
-                                <option value="AUDUSD">AUD/USD</option>
-                                <option value="NZDUSD">NZD/USD</option>
-                            </optgroup>
-                            <optgroup label="Forex Minor & Cross">
-                                <option value="EURGBP">EUR/GBP</option>
-                                <option value="EURJPY">EUR/JPY</option>
-                                <option value="GBPJPY">GBP/JPY</option>
-                                <option value="AUDJPY">AUD/JPY</option>
-                                <option value="EURAUD">EUR/AUD</option>
-                                <option value="GBPAUD">GBP/AUD</option>
-                                <option value="CADJPY">CAD/JPY</option>
-                                <option value="CHFJPY">CHF/JPY</option>
-                            </optgroup>
-                            <optgroup label="Indici & Materie Prime">
-                                <option value="NAS100">Nasdaq (NAS100 / US100)</option>
-                                <option value="US30">Dow Jones (US30)</option>
-                                <option value="SPX500">S&P500 (SPX500)</option>
-                                <option value="GER40">DAX (GER40)</option>
-                                <option value="XAUUSD">Oro (XAU/USD)</option>
-                                <option value="XAGUSD">Argento (XAG/USD)</option>
-                                <option value="WTI">Petrolio (WTI / USOIL)</option>
-                            </optgroup>
-                            <optgroup label="Crypto">
-                                <option value="BTCUSD">Bitcoin (BTC/USD)</option>
-                                <option value="ETHUSD">Ethereum (ETH/USD)</option>
-                                <option value="SOLUSD">Solana (SOL/USD)</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="direction">Direzione</label>
-                        <select id="direction" required>
-                            <option value="BUY">BUY (Long)</option>
-                            <option value="SELL">SELL (Short)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="session">Sessione / Orario</label>
-                        <select id="session" required>
-                            <option value="Asia">Asia</option>
-                            <option value="Londra">Londra</option>
-                            <option value="New York">New York</option>
-                            <option value="Overlap LN/NY">Overlap Londra/NY</option>
-                            <option value="Fuori Sessione">Fuori Sessione</option>
-                        </select>
-                    </div>
-                </div>
+<script>
+    // --- SUPABASE CONFIG (Facoltativo per Cloud Sync) ---
+    // Inserisci le tue chiavi Supabase se vuoi il salvataggio sul cloud:
+    const SUPABASE_URL = "https://TUO-PROGETTO.supabase.co"; 
+    const SUPABASE_KEY = "LA-TUA-ANON-KEY";
+    let supabase = null;
+    if (SUPABASE_URL !== "https://TUO-PROGETTO.supabase.co") {
+        supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
 
-                <div class="form-group-row">
-                    <div>
-                        <label for="entry">Prezzo Ingresso</label>
-                        <input type="number" step="any" id="entry" placeholder="1.0850" required>
-                    </div>
-                    <div>
-                        <label for="sl">Stop Loss (SL)</label>
-                        <input type="number" step="any" id="sl" placeholder="1.0830" required>
-                    </div>
-                    <div>
-                        <label for="tp">Take Profit (TP)</label>
-                        <input type="number" step="any" id="tp" placeholder="1.0910" required>
-                    </div>
-                    <div>
-                        <label for="rr-auto">R:R Calcolato</label>
-                        <input type="text" id="rr-auto" placeholder="1:0.00" readonly class="readonly-input">
-                    </div>
-                </div>
+    // Inizializzazione Data
+    document.getElementById('date').valueAsDate = new Date();
+    let trades = JSON.parse(localStorage.getItem('trading_journal_trades')) || [];
 
-                <div class="form-group-row">
-                    <div>
-                        <label for="result">Esito</label>
-                        <select id="result" required>
-                            <option value="WIN">WIN</option>
-                            <option value="LOSS">LOSS</option>
-                            <option value="BE">BREAKEVEN (BE)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="pnl">Profit / Loss (€/$)</label>
-                        <input type="number" step="any" id="pnl" placeholder="es. 150 o -50" required>
-                    </div>
-                </div>
+    // Rendering Tabella
+    function renderTrades() {
+        const tbody = document.getElementById('tradeTableBody');
+        tbody.innerHTML = '';
 
-                <!-- 🧠 CONFLUENZE & MODELLI -->
-                <hr>
-                <h3>Confluenze & Modelli di Ingresso</h3>
-                <div class="form-group-row">
-                    <div>
-                        <label for="poi">Zona di Interesse (POI)</label>
-                        <select id="poi">
-                            <option value="Order Block">Order Block (OB)</option>
-                            <option value="Fair Value Gap">Fair Value Gap / FVG / Imbalance</option>
-                            <option value="Liquidity Sweep">Liquidity Sweep / Presa di Liquidità</option>
-                            <option value="Breaker / Mitigation">Breaker / Mitigation Block</option>
-                            <option value="Supporto / Resistenza">Supporto / Resistenza Classica</option>
-                            <option value="Fibonacci Level">Livello Fibonacci (OOTE/61.8%/78.6%)</option>
-                            <option value="Trendline">Trendline / Canale</option>
-                            <option value="VWAP / Media Mobile">VWAP / Media Mobile (EMA)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="trigger">Trigger / Conferma Inserimento</label>
-                        <select id="trigger">
-                            <option value="ChoCh">ChoCh (Change of Character)</option>
-                            <option value="MSS">MSS (Market Structure Shift)</option>
-                            <option value="BOS">BOS (Break of Structure)</option>
-                            <option value="Rejection Wick">Rejection Wick / Pinbar</option>
-                            <option value="Engulfing">Candela Engulfing</option>
-                            <option value="Divergenza SMT/RSI">Divergenza (SMT / RSI / MACD)</option>
-                            <option value="Limit Order Direct">Ordine Limite Diretto (Touch)</option>
-                            <option value="Breakout Bar">Breakout della Candela precedente</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="liquidity">Target / Caccia alla Liquidità</label>
-                        <select id="liquidity">
-                            <option value="Buy-side Liquidity">BSL (Buy-side Liquidity)</option>
-                            <option value="Sell-side Liquidity">SSL (Sell-side Liquidity)</option>
-                            <option value="Equal Highs/Lows">EQH / EQL (Massimi/Minimi uguali)</option>
-                            <option value="Session High/Low">High/Low Sessione Precedente</option>
-                            <option value="Trendline Liquidity">Liquidità della Trendline</option>
-                            <option value="Fix RR Target">Target Fisso a R:R (es. 1:3)</option>
-                        </select>
-                    </div>
-                </div>
+        trades.forEach((trade, index) => {
+            const tr = document.createElement('tr');
+            
+            let badgeClass = 'badge-win';
+            if(trade.result === 'LOSS') badgeClass = 'badge-loss';
+            if(trade.result === 'BE') badgeClass = 'badge-be';
 
-                <!-- 🖼️ UPLOAD IMMAGINI DIRETTO & NOTE -->
-                <hr>
-                <h3>Visual & Note</h3>
-                <div class="form-group-row">
-                    <div>
-                        <label for="file-before">Foto Prima dell'ingresso</label>
-                        <input type="file" id="file-before" accept="image/*">
-                    </div>
-                    <div>
-                        <label for="file-after">Foto Dopo la chiusura</label>
-                        <input type="file" id="file-after" accept="image/*">
-                    </div>
-                </div>
-                <div>
-                    <label for="notes">Note & Mindset</label>
-                    <textarea id="notes" rows="3" placeholder="Stato d'animo, disciplina, errori commessi o note sulla gestione del trade..."></textarea>
-                </div>
+            const imgContent = trade.image 
+                ? `<a href="${trade.image}" target="_blank" style="color:var(--accent);">Guarda 🔗</a>`
+                : '-';
 
-                <button type="submit" id="save-btn">Salva Operazione</button>
-            </form>
-        </section>
+            tr.innerHTML = `
+                <td>${trade.date}</td>
+                <td><strong>${trade.asset}</strong></td>
+                <td>${trade.strategy}</td>
+                <td>${trade.direction}</td>
+                <td><span class="badge ${badgeClass}">${trade.result}</span></td>
+                <td>${trade.rr} R</td>
+                <td>${imgContent}</td>
+                <td>${trade.notes || '-'}</td>
+                <td><button class="btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="deleteTrade(${index})">🗑️</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
-        <!-- 📊 TABELLA OPERAZIONI -->
-        <section class="table-container">
-            <h2 id="table-title">Storico Operazioni Live</h2>
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Asset</th>
-                            <th>Tipo</th>
-                            <th>POI</th>
-                            <th>R:R</th>
-                            <th>P&L</th>
-                            <th>Esito</th>
-                            <th>Note / Mindset</th>
-                            <th>Foto</th>
-                            <th>Azione</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trade-list">
-                        <!-- Trade dinamici -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
+    // Aggiungi Trade
+    document.getElementById('tradeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-    </main>
+        const newTrade = {
+            date: document.getElementById('date').value,
+            asset: document.getElementById('asset').value.toUpperCase(),
+            strategy: document.getElementById('strategy').value,
+            direction: document.getElementById('direction').value,
+            result: document.getElementById('result').value,
+            rr: parseFloat(document.getElementById('rr').value),
+            image: document.getElementById('image').value,
+            notes: document.getElementById('notes').value
+        };
 
-    <script src="script.js"></script>
+        trades.unshift(newTrade);
+        saveLocal();
+
+        // Se Supabase è configurato, salva anche in Cloud
+        if (supabase) {
+            await supabase.from('trades').insert([newTrade]);
+        }
+
+        renderTrades();
+        this.reset();
+        document.getElementById('date').valueAsDate = new Date();
+    });
+
+    // Salva in LocalStorage
+    function saveLocal() {
+        localStorage.setItem('trading_journal_trades', JSON.stringify(trades));
+    }
+
+    // Elimina Trade
+    function deleteTrade(index) {
+        if(confirm('Vuoi davvero eliminare questa operazione?')) {
+            trades.splice(index, 1);
+            saveLocal();
+            renderTrades();
+        }
+    }
+
+    // --- ESPORTAZIONE IN EXCEL (.XLSX) ---
+    function exportToExcel() {
+        if (trades.length === 0) {
+            alert("Non ci sono operazioni da esportare!");
+            return;
+        }
+
+        // Formattazione pulita per l'Excel
+        const excelData = trades.map(t => ({
+            "Data": t.date,
+            "Asset": t.asset,
+            "Nome Strategia": t.strategy,
+            "Direzione": t.direction,
+            "Esito": t.result,
+            "R:R": t.rr,
+            "Link Screenshot": t.image,
+            "Note": t.notes
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Storico Trade");
+
+        // Genera e scarica il file
+        XLSX.writeFile(workbook, `Trading_Journal_Backup_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // --- BACKUP & RIPRISTINO JSON ---
+    function exportJSONBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `trading_journal_backup.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importJSONBackup(event) {
+        const fileReader = new FileReader();
+        fileReader.onload = function(e) {
+            try {
+                const importedTrades = JSON.parse(e.target.result);
+                if (Array.isArray(importedTrades)) {
+                    trades = importedTrades;
+                    saveLocal();
+                    renderTrades();
+                    alert("Backup caricato con successo!");
+                } else {
+                    alert("Formato file non valido!");
+                }
+            } catch (err) {
+                alert("Errore nel caricamento del file!");
+            }
+        };
+        fileReader.readAsText(event.target.files[0]);
+    }
+
+    // Primo avvio
+    renderTrades();
+</script>
+
 </body>
 </html>
