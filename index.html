@@ -4,96 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Journal & Calculator</title>
-    <!-- SheetJS per l'esportazione in Excel (.xlsx) -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- Supabase SDK per la persistenza Cloud -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg-color: #0b0f19;
+            --card-bg: #151c2c;
+            --card-border: #232d42;
             --accent: #38bdf8;
+            --accent-hover: #0284c7;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --win-color: #22c55e;
             --loss-color: #ef4444;
             --be-color: #eab308;
-            --border: #334155;
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            margin: 0;
-            padding: 20px;
+            padding: 15px;
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
         header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 15px;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 2px solid var(--card-border);
+            padding-bottom: 20px;
             margin-bottom: 25px;
         }
 
+        @media(min-width: 768px) {
+            header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
         h1 {
-            margin: 0;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .card {
             background-color: var(--card-bg);
-            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
             padding: 20px;
             margin-bottom: 25px;
-            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
         }
 
         .card h2 {
-            margin-top: 0;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: var(--accent);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 8px;
         }
 
+        /* GRID RESPONSIVE */
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: 1fr;
             gap: 15px;
+        }
+
+        @media(min-width: 600px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media(min-width: 900px) {
+            .form-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
+            gap: 6px;
         }
 
         label {
             font-size: 0.85rem;
             color: var(--text-muted);
-            margin-bottom: 5px;
+            font-weight: 600;
         }
 
         input, select, textarea {
             background-color: var(--bg-color);
-            border: 1px solid var(--border);
+            border: 1px solid var(--card-border);
             color: var(--text-main);
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
             font-size: 0.95rem;
-        }
-
-        input[type="file"] {
-            padding: 7px;
-            font-size: 0.85rem;
+            width: 100%;
+            transition: border-color 0.2s;
         }
 
         input:focus, select:focus, textarea:focus {
@@ -101,6 +131,7 @@
             border-color: var(--accent);
         }
 
+        /* BUTTONS */
         .actions-bar {
             display: flex;
             gap: 10px;
@@ -108,75 +139,138 @@
             margin-top: 15px;
         }
 
-        button {
-            padding: 10px 18px;
+        button, .btn-label {
+            padding: 10px 16px;
             border-radius: 6px;
             border: none;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s, opacity 0.2s;
+            text-decoration: none;
         }
 
-        button:hover {
-            opacity: 0.9;
+        button:active, .btn-label:active {
+            transform: scale(0.98);
         }
 
-        .btn-primary { background-color: var(--accent); color: #0f172a; }
-        .btn-excel { background-color: #107c41; color: white; }
-        .btn-secondary { background-color: var(--border); color: var(--text-main); }
-        .btn-danger { background-color: var(--loss-color); color: white; }
+        .btn-primary { background-color: var(--accent); color: #0b0f19; }
+        .btn-primary:hover { background-color: var(--accent-hover); color: #fff; }
+        .btn-excel { background-color: #107c41; color: #fff; }
+        .btn-secondary { background-color: var(--card-border); color: var(--text-main); }
+        .btn-danger { background-color: var(--loss-color); color: #fff; }
 
+        /* DASHBOARD STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        @media(min-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .stat-card {
+            background-color: var(--bg-color);
+            border: 1px solid var(--card-border);
+            padding: 12px 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card .val {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+
+        .stat-card .lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* RESULT BOX */
         .result-box {
-            background-color: rgba(56, 189, 248, 0.1);
-            border: 1px solid var(--accent);
-            padding: 15px;
+            background-color: rgba(56, 189, 248, 0.08);
+            border: 1px dashed var(--accent);
+            padding: 12px;
             border-radius: 8px;
             margin-top: 15px;
             text-align: center;
-            font-size: 1.1rem;
         }
 
-        /* Table Styling */
+        /* TABLE */
         .table-responsive {
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            min-width: 650px;
         }
 
         th, td {
-            padding: 12px;
+            padding: 10px 12px;
             text-align: left;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--card-border);
         }
 
         th {
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: rgba(255, 255, 255, 0.02);
             color: var(--text-muted);
         }
 
         .badge {
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
 
-        .badge-win { background-color: rgba(34, 197, 94, 0.2); color: var(--win-color); }
-        .badge-loss { background-color: rgba(239, 68, 68, 0.2); color: var(--loss-color); }
-        .badge-be { background-color: rgba(234, 179, 8, 0.2); color: var(--be-color); }
+        .badge-win { background-color: rgba(34, 197, 94, 0.15); color: var(--win-color); }
+        .badge-loss { background-color: rgba(239, 68, 68, 0.15); color: var(--loss-color); }
+        .badge-be { background-color: rgba(234, 179, 8, 0.15); color: var(--be-color); }
 
-        .img-preview {
-            max-width: 50px;
-            max-height: 40px;
+        .img-thumb {
+            width: 40px;
+            height: 40px;
             border-radius: 4px;
-            cursor: pointer;
             object-fit: cover;
-            border: 1px solid var(--border);
+            cursor: pointer;
+            border: 1px solid var(--card-border);
+        }
+
+        /* MODALE FOTO */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal img {
+            max-width: 90%;
+            max-height: 85vh;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -186,43 +280,63 @@
     <header>
         <h1>📊 Trading Journal & Tools</h1>
         <div class="actions-bar" style="margin-top:0;">
-            <button class="btn-excel" onclick="exportToExcel()">📥 Esporta Excel (.xlsx)</button>
-            <button class="btn-secondary" onclick="exportJSONBackup()">💾 Backup JSON</button>
-            <input type="file" id="importFile" style="display:none" onchange="importJSONBackup(event)">
+            <button class="btn-excel" onclick="exportCSV()">📥 Esporta Report (.csv)</button>
+            <button class="btn-secondary" onclick="exportJSON()">💾 Backup JSON</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
             <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Carica Backup</button>
         </div>
     </header>
 
+    <!-- DASHBOARD STATISTICHE -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="lbl">Trade Totali</div>
+            <div class="val" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">Win Rate</div>
+            <div class="val" id="statWinRate">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">Esiti (W / L / BE)</div>
+            <div class="val" id="statWLB" style="font-size:1.1rem; margin-top:8px;">0 / 0 / 0</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">R:R Cumulativo</div>
+            <div class="val" id="statRR">0 R</div>
+        </div>
+    </div>
+
     <!-- SEZIONE CALCOLATORE LOTTAGGIO -->
     <div class="card">
-        <h2>🧮 Calcolatore Lottaggio</h2>
+        <h2>🧮 Calcolatore Lottaggio Posizione</h2>
         <div class="form-grid">
             <div class="form-group">
                 <label for="calcBalance">Capitale Conto (€ / $)</label>
-                <input type="number" id="calcBalance" placeholder="es. 10000" value="10000">
+                <input type="number" id="calcBalance" value="10000" placeholder="10000">
             </div>
             <div class="form-group">
                 <label for="calcRisk">Rischio (%)</label>
-                <input type="number" id="calcRisk" step="0.1" placeholder="es. 1" value="1">
+                <input type="number" id="calcRisk" step="0.1" value="1" placeholder="1">
             </div>
             <div class="form-group">
                 <label for="calcSlPips">Stop Loss (Pips / Punti)</label>
-                <input type="number" id="calcSlPips" placeholder="es. 20" value="20">
+                <input type="number" id="calcSlPips" value="20" placeholder="20">
             </div>
             <div class="form-group">
-                <label for="calcAssetType">Tipo Asset</label>
+                <label for="calcAssetType">Tipo di Asset</label>
                 <select id="calcAssetType">
-                    <option value="forex">Forex Standard (1 Lotto = $10/pip)</option>
-                    <option value="crypto_index">Indici / Crypto / Commodities</option>
+                    <option value="forex">Forex Standard (1 Lotto = 10$/pip)</option>
+                    <option value="crypto_index">Indici / Crypto / Azioni</option>
                 </select>
             </div>
         </div>
         <div class="actions-bar">
-            <button type="button" class="btn-primary" onclick="calculateLotSize()">Calcola Lottaggio</button>
+            <button type="button" class="btn-primary" onclick="calculateLotSize()">⚡ Calcola Dimensione Posizione</button>
         </div>
         <div id="calcResult" class="result-box" style="display:none;">
-            Dimensione Posizione: <strong id="lotResultText" style="color:var(--accent);">0.00</strong> Lotti 
-            <span id="riskAmountText" style="font-size:0.9rem; color:var(--text-muted); display:block; margin-top:5px;"></span>
+            Taglia Posizione Consigliata: <strong id="lotResultText" style="color:var(--accent); font-size: 1.2rem;">0.00</strong> Lotti
+            <div id="riskAmountText" style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;"></div>
         </div>
     </div>
 
@@ -232,16 +346,16 @@
         <form id="tradeForm">
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="date">Data</label>
+                    <label for="date">Data Operazione</label>
                     <input type="date" id="date" required>
                 </div>
                 <div class="form-group">
                     <label for="asset">Asset / Coppia</label>
-                    <input type="text" id="asset" placeholder="es. EUR/USD, AUD/JPY, Oro" required>
+                    <input type="text" id="asset" placeholder="es. EUR/USD, Oro, BTC" required>
                 </div>
                 <div class="form-group">
                     <label for="strategy">Nome Strategia</label>
-                    <input type="text" id="strategy" placeholder="es. Scalp Oro, Swing AUD/CAD" required>
+                    <input type="text" id="strategy" placeholder="es. Breakout, Scalping" required>
                 </div>
                 <div class="form-group">
                     <label for="direction">Direzione</label>
@@ -251,7 +365,7 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="result">Esito</label>
+                    <label for="result">Esito Trade</label>
                     <select id="result">
                         <option value="WIN">WIN 🟢</option>
                         <option value="LOSS">LOSS 🔴</option>
@@ -259,7 +373,7 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="rr">R : R (Rischio/Rendimento)</label>
+                    <label for="rr">R : R (Rischio / Rendimento)</label>
                     <select id="rr" required>
                         <option value="1:0.5">1 : 0.5</option>
                         <option value="1:1">1 : 1</option>
@@ -267,26 +381,22 @@
                         <option value="1:2" selected>1 : 2</option>
                         <option value="1:2.5">1 : 2.5</option>
                         <option value="1:3">1 : 3</option>
-                        <option value="1:3.5">1 : 3.5</option>
                         <option value="1:4">1 : 4</option>
                         <option value="1:5">1 : 5</option>
-                        <option value="1:6">1 : 6</option>
-                        <option value="1:7">1 : 7</option>
-                        <option value="1:8">1 : 8</option>
-                        <option value="1:10">1 : 10+</option>
+                        <option value="1:6">1 : 6+</option>
                     </select>
                 </div>
-                <div class="form-group" style="grid-column: span 2;">
-                    <label for="imageFile">Carica Screenshot (dalla Galleria / File)</label>
+                <div class="form-group full-width">
+                    <label for="imageFile">Screenshot (Galleria / Foto)</label>
                     <input type="file" id="imageFile" accept="image/*">
                 </div>
-                <div class="form-group" style="grid-column: span 2;">
-                    <label for="notes">Note Brevi / Confluenze</label>
-                    <textarea id="notes" rows="2" placeholder="Note veloci sul trade..."></textarea>
+                <div class="form-group full-width">
+                    <label for="notes">Note / Confluenze</label>
+                    <textarea id="notes" rows="2" placeholder="Motivazioni dell'ingresso, emozioni, condizioni di mercato..."></textarea>
                 </div>
             </div>
             <div class="actions-bar">
-                <button type="submit" class="btn-primary">➕ Salva Trade</button>
+                <button type="submit" class="btn-primary">💾 Salva Trade nel Journal</button>
             </div>
         </form>
     </div>
@@ -310,25 +420,24 @@
                     </tr>
                 </thead>
                 <tbody id="tradeTableBody">
-                    <!-- I dati inseriti compaiono qui -->
+                    <!-- Trade dinamici inseriti via JavaScript -->
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<script>
-    // --- SUPABASE CONFIG (Facoltativo per Cloud Sync) ---
-    const SUPABASE_URL = "https://TUO-PROGETTO.supabase.co"; 
-    const SUPABASE_KEY = "LA-TUA-ANON-KEY";
-    let supabase = null;
-    if (SUPABASE_URL !== "https://TUO-PROGETTO.supabase.co") {
-        supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
+<!-- MODALE INGRANDIMENTO FOTO -->
+<div id="imgModal" class="modal" onclick="this.style.display='none'">
+    <img id="modalImg" src="" alt="Zoom Screenshot">
+</div>
 
-    // Inizializzazione Data
+<script>
+    // Inizializzazione Data odierna
     document.getElementById('date').valueAsDate = new Date();
-    let trades = JSON.parse(localStorage.getItem('trading_journal_trades')) || [];
+    
+    // Recupero Dati da LocalStorage
+    let trades = JSON.parse(localStorage.getItem('trading_journal_data')) || [];
 
     // --- CALCOLATORE LOTTAGGIO ---
     function calculateLotSize() {
@@ -338,50 +447,82 @@
         const assetType = document.getElementById('calcAssetType').value;
 
         if (!balance || !riskPercent || !slPips || slPips <= 0) {
-            alert("Per favore inserisci dati validi per il calcolo del lottaggio.");
+            alert("Compila tutti i campi del calcolatore con valori maggiori di zero.");
             return;
         }
 
-        const riskAmount = (balance * (riskPercent / 100));
-        let lotSize = 0;
-
-        if (assetType === 'forex') {
-            // Formula standard Forex (1 lotto standard = $10 per pip)
-            lotSize = riskAmount / (slPips * 10);
-        } else {
-            // Formula indicativa per indici/crypto
-            lotSize = riskAmount / slPips;
-        }
+        const riskAmount = balance * (riskPercent / 100);
+        let lotSize = (assetType === 'forex') ? (riskAmount / (slPips * 10)) : (riskAmount / slPips);
 
         document.getElementById('lotResultText').innerText = lotSize.toFixed(2);
-        document.getElementById('riskAmountText').innerText = `Rischio Monetario: ${riskAmount.toFixed(2)} €/$`;
+        document.getElementById('riskAmountText').innerText = `Rischio Monetario Effettivo: ${riskAmount.toFixed(2)} €/$`;
         document.getElementById('calcResult').style.display = 'block';
     }
 
-    // Helper per convertire l'immagine in Base64
-    function convertFileToBase64(file) {
+    // --- CONVERSIONE FOTO IN BASE64 ---
+    function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result);
             reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
         });
     }
 
-    // Rendering Tabella
+    // --- CALCOLO STATISTICHE ---
+    function updateStats() {
+        const total = trades.length;
+        if (total === 0) {
+            document.getElementById('statTotal').innerText = "0";
+            document.getElementById('statWinRate').innerText = "0%";
+            document.getElementById('statWLB').innerText = "0 / 0 / 0";
+            document.getElementById('statRR').innerText = "0 R";
+            return;
+        }
+
+        let wins = 0, losses = 0, be = 0, totalRR = 0;
+
+        trades.forEach(t => {
+            if (t.result === 'WIN') {
+                wins++;
+                const rrVal = parseFloat(t.rr.replace('1:', '')) || 1;
+                totalRR += rrVal;
+            } else if (t.result === 'LOSS') {
+                losses++;
+                totalRR -= 1;
+            } else {
+                be++;
+            }
+        });
+
+        const winRate = Math.round((wins / total) * 100);
+
+        document.getElementById('statTotal').innerText = total;
+        document.getElementById('statWinRate').innerText = `${winRate}%`;
+        document.getElementById('statWLB').innerText = `${wins} / ${losses} / ${be}`;
+        document.getElementById('statRR').innerText = `${totalRR >= 0 ? '+' : ''}${totalRR.toFixed(1)} R`;
+    }
+
+    // --- RENDERING TABELLA ---
     function renderTrades() {
         const tbody = document.getElementById('tradeTableBody');
         tbody.innerHTML = '';
 
+        if (trades.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Nessun trade salvato finora.</td></tr>`;
+            updateStats();
+            return;
+        }
+
         trades.forEach((trade, index) => {
             const tr = document.createElement('tr');
-            
-            let badgeClass = 'badge-win';
-            if(trade.result === 'LOSS') badgeClass = 'badge-loss';
-            if(trade.result === 'BE') badgeClass = 'badge-be';
 
-            const imgContent = trade.image 
-                ? `<a href="${trade.image}" target="_blank"><img src="${trade.image}" class="img-preview" alt="Chart"></a>`
+            let badgeClass = 'badge-win';
+            if (trade.result === 'LOSS') badgeClass = 'badge-loss';
+            if (trade.result === 'BE') badgeClass = 'badge-be';
+
+            const imgHtml = trade.image 
+                ? `<img src="${trade.image}" class="img-thumb" onclick="openModal('${trade.image}')" alt="Grafico">` 
                 : '-';
 
             tr.innerHTML = `
@@ -391,15 +532,17 @@
                 <td>${trade.direction}</td>
                 <td><span class="badge ${badgeClass}">${trade.result}</span></td>
                 <td>${trade.rr}</td>
-                <td>${imgContent}</td>
+                <td>${imgHtml}</td>
                 <td>${trade.notes || '-'}</td>
                 <td><button class="btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="deleteTrade(${index})">🗑️</button></td>
             `;
             tbody.appendChild(tr);
         });
+
+        updateStats();
     }
 
-    // Aggiungi Trade
+    // --- AGGIUNTA NUOVO TRADE ---
     document.getElementById('tradeForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -407,105 +550,111 @@
         const fileInput = document.getElementById('imageFile');
         if (fileInput.files && fileInput.files[0]) {
             try {
-                imageData = await convertFileToBase64(fileInput.files[0]);
+                imageData = await fileToBase64(fileInput.files[0]);
             } catch (err) {
-                console.error("Errore nel caricamento immagine", err);
+                console.error("Errore caricamento foto", err);
             }
         }
 
         const newTrade = {
             date: document.getElementById('date').value,
-            asset: document.getElementById('asset').value.toUpperCase(),
-            strategy: document.getElementById('strategy').value,
+            asset: document.getElementById('asset').value.toUpperCase().trim(),
+            strategy: document.getElementById('strategy').value.trim(),
             direction: document.getElementById('direction').value,
             result: document.getElementById('result').value,
             rr: document.getElementById('rr').value,
             image: imageData,
-            notes: document.getElementById('notes').value
+            notes: document.getElementById('notes').value.trim()
         };
 
         trades.unshift(newTrade);
-        saveLocal();
-
-        if (supabase) {
-            await supabase.from('trades').insert([newTrade]);
-        }
-
+        saveData();
         renderTrades();
+
         this.reset();
         document.getElementById('date').valueAsDate = new Date();
     });
 
-    // Salva in LocalStorage
-    function saveLocal() {
-        localStorage.setItem('trading_journal_trades', JSON.stringify(trades));
+    // --- SALVATAGGIO LOCALE ---
+    function saveData() {
+        localStorage.setItem('trading_journal_data', JSON.stringify(trades));
     }
 
-    // Elimina Trade
+    // --- ELIMINAZIONE TRADE ---
     function deleteTrade(index) {
-        if(confirm('Vuoi davvero eliminare questa operazione?')) {
+        if (confirm("Sei sicuro di voler eliminare questo trade?")) {
             trades.splice(index, 1);
-            saveLocal();
+            saveData();
             renderTrades();
         }
     }
 
-    // --- ESPORTAZIONE IN EXCEL (.XLSX) ---
-    function exportToExcel() {
+    // --- VISORE INGRANDIMENTO FOTO ---
+    function openModal(imgSrc) {
+        document.getElementById('modalImg').src = imgSrc;
+        document.getElementById('imgModal').style.display = 'flex';
+    }
+
+    // --- ESPORTAZIONE CSV (COMPATIBILE EXCEL) ---
+    function exportCSV() {
         if (trades.length === 0) {
             alert("Non ci sono operazioni da esportare!");
             return;
         }
 
-        const excelData = trades.map(t => ({
-            "Data": t.date,
-            "Asset": t.asset,
-            "Nome Strategia": t.strategy,
-            "Direzione": t.direction,
-            "Esito": t.result,
-            "R:R": t.rr,
-            "Note": t.notes
-        }));
+        let csvContent = "data:text/csv;charset=utf-8,Data,Asset,Strategia,Direzione,Esito,RR,Note\n";
+        trades.forEach(t => {
+            const row = `"${t.date}","${t.asset}","${t.strategy}","${t.direction}","${t.result}","${t.rr}","${(t.notes || '').replace(/"/g, '""')}"`;
+            csvContent += row + "\n";
+        });
 
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Storico Trade");
-
-        XLSX.writeFile(workbook, `Trading_Journal_Backup_${new Date().toISOString().slice(0,10)}.xlsx`);
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Trading_Journal_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 
-    // --- BACKUP & RIPRISTINO JSON ---
-    function exportJSONBackup() {
+    // --- BACKUP E RIPRISTINO JSON ---
+    function exportJSON() {
+        if (trades.length === 0) {
+            alert("Non ci sono dati da salvare nel backup!");
+            return;
+        }
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `trading_journal_backup.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        const link = document.createElement('a');
+        link.setAttribute("href", dataStr);
+        link.setAttribute("download", `trading_journal_backup.json`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 
-    function importJSONBackup(event) {
-        const fileReader = new FileReader();
-        fileReader.onload = function(e) {
+    function importJSON(event) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
             try {
-                const importedTrades = JSON.parse(e.target.result);
-                if (Array.isArray(importedTrades)) {
-                    trades = importedTrades;
-                    saveLocal();
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    trades = imported;
+                    saveData();
                     renderTrades();
-                    alert("Backup caricato con successo!");
+                    alert("Backup ripristinato con successo!");
                 } else {
-                    alert("Formato file non valido!");
+                    alert("Il file caricato non contiene un backup valido.");
                 }
             } catch (err) {
-                alert("Errore nel caricamento del file!");
+                alert("Errore nella lettura del file di backup.");
             }
         };
-        fileReader.readAsText(event.target.files[0]);
+        if(event.target.files[0]) {
+            reader.readAsText(event.target.files[0]);
+        }
     }
 
-    // Primo avvio
+    // Primo caricamento all'apertura della pagina
     renderTrades();
 </script>
 
