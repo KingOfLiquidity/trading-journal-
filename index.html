@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal Pro</title>
+    <title>Trading Journal & Calculator</title>
     <!-- SheetJS per l'esportazione in Excel (.xlsx) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase SDK per la persistenza Cloud -->
@@ -60,7 +60,7 @@
         .card h2 {
             margin-top: 0;
             font-size: 1.2rem;
-            color: var(--text-muted);
+            color: var(--accent);
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
         }
@@ -126,6 +126,16 @@
         .btn-secondary { background-color: var(--border); color: var(--text-main); }
         .btn-danger { background-color: var(--loss-color); color: white; }
 
+        .result-box {
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--accent);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
         /* Table Styling */
         .table-responsive {
             overflow-x: auto;
@@ -174,7 +184,7 @@
 
 <div class="container">
     <header>
-        <h1>📊 Trading Journal</h1>
+        <h1>📊 Trading Journal & Tools</h1>
         <div class="actions-bar" style="margin-top:0;">
             <button class="btn-excel" onclick="exportToExcel()">📥 Esporta Excel (.xlsx)</button>
             <button class="btn-secondary" onclick="exportJSONBackup()">💾 Backup JSON</button>
@@ -183,9 +193,42 @@
         </div>
     </header>
 
+    <!-- SEZIONE CALCOLATORE LOTTAGGIO -->
+    <div class="card">
+        <h2>🧮 Calcolatore Lottaggio</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="calcBalance">Capitale Conto (€ / $)</label>
+                <input type="number" id="calcBalance" placeholder="es. 10000" value="10000">
+            </div>
+            <div class="form-group">
+                <label for="calcRisk">Rischio (%)</label>
+                <input type="number" id="calcRisk" step="0.1" placeholder="es. 1" value="1">
+            </div>
+            <div class="form-group">
+                <label for="calcSlPips">Stop Loss (Pips / Punti)</label>
+                <input type="number" id="calcSlPips" placeholder="es. 20" value="20">
+            </div>
+            <div class="form-group">
+                <label for="calcAssetType">Tipo Asset</label>
+                <select id="calcAssetType">
+                    <option value="forex">Forex Standard (1 Lotto = $10/pip)</option>
+                    <option value="crypto_index">Indici / Crypto / Commodities</option>
+                </select>
+            </div>
+        </div>
+        <div class="actions-bar">
+            <button type="button" class="btn-primary" onclick="calculateLotSize()">Calcola Lottaggio</button>
+        </div>
+        <div id="calcResult" class="result-box" style="display:none;">
+            Dimensione Posizione: <strong id="lotResultText" style="color:var(--accent);">0.00</strong> Lotti 
+            <span id="riskAmountText" style="font-size:0.9rem; color:var(--text-muted); display:block; margin-top:5px;"></span>
+        </div>
+    </div>
+
     <!-- FORM INSERIMENTO TRADE -->
     <div class="card">
-        <h2>Nuova Operazione</h2>
+        <h2>📝 Nuova Operazione</h2>
         <form id="tradeForm">
             <div class="form-grid">
                 <div class="form-group">
@@ -250,7 +293,7 @@
 
     <!-- TABELLA STORICO -->
     <div class="card">
-        <h2>Storico Operazioni</h2>
+        <h2>📋 Storico Operazioni</h2>
         <div class="table-responsive">
             <table>
                 <thead>
@@ -286,6 +329,34 @@
     // Inizializzazione Data
     document.getElementById('date').valueAsDate = new Date();
     let trades = JSON.parse(localStorage.getItem('trading_journal_trades')) || [];
+
+    // --- CALCOLATORE LOTTAGGIO ---
+    function calculateLotSize() {
+        const balance = parseFloat(document.getElementById('calcBalance').value);
+        const riskPercent = parseFloat(document.getElementById('calcRisk').value);
+        const slPips = parseFloat(document.getElementById('calcSlPips').value);
+        const assetType = document.getElementById('calcAssetType').value;
+
+        if (!balance || !riskPercent || !slPips || slPips <= 0) {
+            alert("Per favore inserisci dati validi per il calcolo del lottaggio.");
+            return;
+        }
+
+        const riskAmount = (balance * (riskPercent / 100));
+        let lotSize = 0;
+
+        if (assetType === 'forex') {
+            // Formula standard Forex (1 lotto standard = $10 per pip)
+            lotSize = riskAmount / (slPips * 10);
+        } else {
+            // Formula indicativa per indici/crypto
+            lotSize = riskAmount / slPips;
+        }
+
+        document.getElementById('lotResultText').innerText = lotSize.toFixed(2);
+        document.getElementById('riskAmountText').innerText = `Rischio Monetario: ${riskAmount.toFixed(2)} €/$`;
+        document.getElementById('calcResult').style.display = 'block';
+    }
 
     // Helper per convertire l'immagine in Base64
     function convertFileToBase64(file) {
