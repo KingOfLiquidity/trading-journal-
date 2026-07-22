@@ -91,6 +91,11 @@
             font-size: 0.95rem;
         }
 
+        input[type="file"] {
+            padding: 7px;
+            font-size: 0.85rem;
+        }
+
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--accent);
@@ -156,10 +161,12 @@
         .badge-be { background-color: rgba(234, 179, 8, 0.2); color: var(--be-color); }
 
         .img-preview {
-            max-width: 60px;
+            max-width: 50px;
             max-height: 40px;
             border-radius: 4px;
             cursor: pointer;
+            object-fit: cover;
+            border: 1px solid var(--border);
         }
     </style>
 </head>
@@ -210,11 +217,25 @@
                 </div>
                 <div class="form-group">
                     <label for="rr">R : R (Rischio/Rendimento)</label>
-                    <input type="number" id="rr" step="0.1" placeholder="es. 2.5" required>
+                    <select id="rr" required>
+                        <option value="1:0.5">1 : 0.5</option>
+                        <option value="1:1">1 : 1</option>
+                        <option value="1:1.5">1 : 1.5</option>
+                        <option value="1:2" selected>1 : 2</option>
+                        <option value="1:2.5">1 : 2.5</option>
+                        <option value="1:3">1 : 3</option>
+                        <option value="1:3.5">1 : 3.5</option>
+                        <option value="1:4">1 : 4</option>
+                        <option value="1:5">1 : 5</option>
+                        <option value="1:6">1 : 6</option>
+                        <option value="1:7">1 : 7</option>
+                        <option value="1:8">1 : 8</option>
+                        <option value="1:10">1 : 10+</option>
+                    </select>
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
-                    <label for="image">URL Immagine / Screenshot (TradingView)</label>
-                    <input type="url" id="image" placeholder="https://www.tradingview.com/x/...">
+                    <label for="imageFile">Carica Screenshot (dalla Galleria / File)</label>
+                    <input type="file" id="imageFile" accept="image/*">
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
                     <label for="notes">Note Brevi / Confluenze</label>
@@ -240,7 +261,7 @@
                         <th>Direzione</th>
                         <th>Esito</th>
                         <th>R:R</th>
-                        <th>Chart</th>
+                        <th>Foto</th>
                         <th>Note</th>
                         <th>Azione</th>
                     </tr>
@@ -255,7 +276,6 @@
 
 <script>
     // --- SUPABASE CONFIG (Facoltativo per Cloud Sync) ---
-    // Inserisci le tue chiavi Supabase se vuoi il salvataggio sul cloud:
     const SUPABASE_URL = "https://TUO-PROGETTO.supabase.co"; 
     const SUPABASE_KEY = "LA-TUA-ANON-KEY";
     let supabase = null;
@@ -266,6 +286,16 @@
     // Inizializzazione Data
     document.getElementById('date').valueAsDate = new Date();
     let trades = JSON.parse(localStorage.getItem('trading_journal_trades')) || [];
+
+    // Helper per convertire l'immagine in Base64
+    function convertFileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
 
     // Rendering Tabella
     function renderTrades() {
@@ -280,7 +310,7 @@
             if(trade.result === 'BE') badgeClass = 'badge-be';
 
             const imgContent = trade.image 
-                ? `<a href="${trade.image}" target="_blank" style="color:var(--accent);">Guarda 🔗</a>`
+                ? `<a href="${trade.image}" target="_blank"><img src="${trade.image}" class="img-preview" alt="Chart"></a>`
                 : '-';
 
             tr.innerHTML = `
@@ -289,7 +319,7 @@
                 <td>${trade.strategy}</td>
                 <td>${trade.direction}</td>
                 <td><span class="badge ${badgeClass}">${trade.result}</span></td>
-                <td>${trade.rr} R</td>
+                <td>${trade.rr}</td>
                 <td>${imgContent}</td>
                 <td>${trade.notes || '-'}</td>
                 <td><button class="btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="deleteTrade(${index})">🗑️</button></td>
@@ -302,21 +332,30 @@
     document.getElementById('tradeForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
+        let imageData = "";
+        const fileInput = document.getElementById('imageFile');
+        if (fileInput.files && fileInput.files[0]) {
+            try {
+                imageData = await convertFileToBase64(fileInput.files[0]);
+            } catch (err) {
+                console.error("Errore nel caricamento immagine", err);
+            }
+        }
+
         const newTrade = {
             date: document.getElementById('date').value,
             asset: document.getElementById('asset').value.toUpperCase(),
             strategy: document.getElementById('strategy').value,
             direction: document.getElementById('direction').value,
             result: document.getElementById('result').value,
-            rr: parseFloat(document.getElementById('rr').value),
-            image: document.getElementById('image').value,
+            rr: document.getElementById('rr').value,
+            image: imageData,
             notes: document.getElementById('notes').value
         };
 
         trades.unshift(newTrade);
         saveLocal();
 
-        // Se Supabase è configurato, salva anche in Cloud
         if (supabase) {
             await supabase.from('trades').insert([newTrade]);
         }
@@ -347,7 +386,6 @@
             return;
         }
 
-        // Formattazione pulita per l'Excel
         const excelData = trades.map(t => ({
             "Data": t.date,
             "Asset": t.asset,
@@ -355,7 +393,6 @@
             "Direzione": t.direction,
             "Esito": t.result,
             "R:R": t.rr,
-            "Link Screenshot": t.image,
             "Note": t.notes
         }));
 
@@ -363,7 +400,6 @@
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Storico Trade");
 
-        // Genera e scarica il file
         XLSX.writeFile(workbook, `Trading_Journal_Backup_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
