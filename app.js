@@ -3,6 +3,271 @@ document.getElementById('userEmail').value = localStorage.getItem('journal_user_
 
 let trades = JSON.parse(localStorage.getItem('trading_journal_data')) || [];
 
+// ========================================
+// GOOGLE DRIVE INTEGRATION SETUP
+// ========================================
+const GOOGLE_CONFIG = {
+    API_KEY: 'YOUR_API_KEY_HERE',          // TODO: Sostituisci con la tua API Key da Google Cloud Console
+    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com',  // TODO: Sostituisci con il tuo Client ID
+    SCOPES: ['https://www.googleapis.com/auth/drive.file']
+};
+
+let googleAuth = null;
+let isGoogleSignedIn = false;
+let googleDriveFolderId = null;
+
+function initGoogleAPI() {
+    if (!window.gapi) {
+        console.warn('⚠️ Google API non caricato. Verifica il tag <script>');
+        return;
+    }
+
+    gapi.load('client:auth2', () => {
+        gapi.client.init({
+            apiKey: GOOGLE_CONFIG.API_KEY,
+            clientId: GOOGLE_CONFIG.CLIENT_ID,
+            scope: GOOGLE_CONFIG.SCOPES
+        }).then(() => {
+            googleAuth = gapi.auth2.getAuthInstance();
+            googleDriveFolderId = localStorage.getItem('trading_journal_drive_folder');
+            updateGoogleAuthUI();
+            googleAuth.isSignedIn.listen(updateGoogleAuthUI);
+        }).catch(err => {
+            console.error('❌ Errore Google API init:', err);
+            updateGoogleAuthUI();
+        });
+    });
+}
+
+function updateGoogleAuthUI() {
+    isGoogleSignedIn = googleAuth?.isSignedIn.get() || false;
+    const btn = document.getElementById('googleDriveBtn');
+    const driveButtons = document.getElementById('driveButtons');
+    
+    if (btn) {
+        btn.style.opacity = isGoogleSignedIn ? '1' : '0.5';
+        btn.innerHTML = isGoogleSignedIn 
+            ? '✅ Connesso a Drive' 
+            : '☁️ Connetti a Drive';
+    }
+
+    if (driveButtons) {
+        driveButtons.style.display = isGoogleSignedIn ? 'flex' : 'none';
+    }
+}
+
+function toggleGoogleSignIn() {
+    if (!googleAuth) {
+        alert('⚠️ Google API non disponibile. Controlla la configurazione.');
+        return;
+    }
+    
+    if (isGoogleSignedIn) {
+        googleAuth.signOut().then(() => {
+            isGoogleSignedIn = false;
+            updateGoogleAuthUI();
+            showNotification('👋 Disconnesso da Google Drive');
+        });
+    } else {
+        googleAuth.signIn().then(() => {
+            isGoogleSignedIn = true;
+            updateGoogleAuthUI();
+            showNotification('✅ Connesso a Google Drive');
+        }).catch(err => {
+            console.error('Sign-in error:', err);
+            alert('❌ Errore nell\'accesso: ' + err.error);
+        });
+    }
+}
+
+async function ensureDriveFolder() {
+    if (googleDriveFolderId) return googleDriveFolderId;
+
+    try {
+        const response = await gapi.client.drive.files.create({
+            resource: {
+                name: 'Trading Journal Backups',
+                mimeType: 'application/vnd.google-apps.folder'
+            },
+            fields: 'id'
+        });
+        
+        googleDriveFolderId = response.result.id;
+        localStorage.setItem('trading_journal_drive_folder', googleDriveFolderId);
+        return googleDriveFolderId;
+    } catch (err) {
+        console.error('Errore creazione folder:', err);
+        throw err;
+    }
+}
+
+async function backupToGoogleDrive() {
+    if (!isGoogleSignedIn) {
+        alert('⚠️ Accedi a Google Drive prima di fare il backup.');
+        toggleGoogleSignIn();
+        return;
+    }
+
+    if (trades.length === 0) {
+        alert("❌ Nessun trade da salvare!");
+        return;
+    }
+
+    try {
+        showNotification('⏳ Backup in corso...');
+        
+        const folderId = await ensureDriveFolder();
+        const email = localStorage.getItem('journal_user_email') || 'Account_Generico';
+        
+        const backupObject = {
+            userEmail: email,
+            exportDate: new Date().toISOString(),
+            exportTimestamp: new Date().getTime(),
+            tradeCount: trades.length,
+            trades: trades
+        };
+
+        const fileContent = JSON.stringify(backupObject, null, 2);
+        const fileName = `Trading_Journal_${email}_${new Date().toISOString().slice(0, 10)}_${Date.now()}.json`;
+
+        const response = await gapi.client.drive.files.create({
+            resource: {
+                name: fileName,
+                parents: [folderId],
+                mimeType: 'application/json',
+                description: `Trading Journal Backup - ${new Date().toLocaleString()}`
+            },
+            media: {
+                mimeType: 'application/json',
+                body: fileContent
+            },
+            fields: 'id, webViewLink'
+        });
+
+        const fileId = response.result.id;
+        const driveLink = response.result.webViewLink;
+
+        localStorage.setItem('trading_journal_latest_drive_backup', fileId);
+        localStorage.setItem('trading_journal_latest_drive_link', driveLink);
+
+        showNotification(`✅ Backup salvato: ${fileName.substring(0, 30)}...`);
+        
+        // Copia link negli appunti automaticamente
+        await copyToClipboard(driveLink);
+        
+    } catch (err) {
+        console.error('Drive upload error:', err);
+        alert('❌ Errore nel backup su Drive:\n' + err.message);
+    }
+}
+
+async function restoreFromGoogleDrive() {
+    if (!isGoogleSignedIn) {
+        alert('⚠️ Accedi a Google Drive prima di ripristinare.');
+        toggleGoogleSignIn();
+        return;
+    }
+
+    try {
+        showNotification('⏳ Ripristino in corso...');
+        
+        const backupId = localStorage.getItem('trading_journal_latest_drive_backup');
+        if (!backupId) {
+            alert("❌ Nessun backup trovato su Drive.\n\nFai prima un backup con il pulsante '💾 Backup to Drive'");
+            return;
+        }
+
+        const response = await gapi.client.drive.files.get({
+            fileId: backupId,
+            alt: 'media'
+        });
+
+        const importedData = response.result;
+        let importedTrades = [];
+
+        if (Array.isArray(importedData)) {
+            importedTrades = importedData;
+        } else if (importedData?.trades && Array.isArray(importedData.trades)) {
+            importedTrades = importedData.trades;
+            if (importedData.userEmail) {
+                localStorage.setItem('journal_user_email', importedData.userEmail);
+                document.getElementById('userEmail').value = importedData.userEmail;
+            }
+        }
+
+        if (!Array.isArray(importedTrades) || importedTrades.length === 0) {
+            alert("⚠️ Backup vuoto o formato non valido.");
+            return;
+        }
+
+        const merge = confirm(
+            `📊 Trovati ${importedTrades.length} trade dal backup.\n\n` +
+            `Attualmente hai ${trades.length} trade.\n\n` +
+            `✅ OK = AGGIUNGI ai trade esistenti\n` +
+            `❌ ANNULLA = SOSTITUISCI tutti i trade`
+        );
+
+        trades = merge ? [...importedTrades, ...trades] : importedTrades;
+        saveData();
+        renderTrades();
+        showNotification(`✅ ${importedTrades.length} trade ripristinati!`);
+    } catch (err) {
+        console.error('Drive restore error:', err);
+        alert('❌ Errore nel ripristino:\n' + err.message);
+    }
+}
+
+async function listGoogleDriveBackups() {
+    if (!isGoogleSignedIn) {
+        alert('⚠️ Accedi a Google Drive prima.');
+        toggleGoogleSignIn();
+        return;
+    }
+
+    try {
+        const folderId = localStorage.getItem('trading_journal_drive_folder');
+        if (!folderId) {
+            alert("❌ Nessuna cartella di backup trovata su Drive.");
+            return;
+        }
+
+        const response = await gapi.client.drive.files.list({
+            q: `'${folderId}' in parents and trashed=false`,
+            spaces: 'drive',
+            fields: 'files(id, name, createdTime, webViewLink, size)',
+            orderBy: 'createdTime desc',
+            pageSize: 10
+        });
+
+        const files = response.result.files;
+        if (!files || files.length === 0) {
+            alert('❌ Nessun backup trovato su Drive.');
+            return;
+        }
+
+        let list = '📋 Backup disponibili su Drive:\n\n';
+        files.forEach((f, i) => {
+            const date = new Date(f.createdTime).toLocaleString();
+            const size = f.size ? (f.size / 1024).toFixed(1) + ' KB' : '?';
+            list += `${i + 1}. ${f.name}\n   📅 ${date} | 💾 ${size}\n\n`;
+        });
+
+        alert(list);
+    } catch (err) {
+        console.error('List error:', err);
+        alert('❌ Errore nell\'elenco backup:\n' + err.message);
+    }
+}
+
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showNotification('📋 Link copiato negli appunti!');
+    } catch (err) {
+        console.error('Copy error:', err);
+    }
+}
+
 function saveUserEmail() {
     const email = document.getElementById('userEmail').value.trim();
     if (!email) {
@@ -202,7 +467,7 @@ function calculateLotSize() {
                     <div>📊 Esposizione SL: ${totalRiskExposure.toFixed(2)}${config.name.includes('DAX') ? '€' : '$'}</div>
                     <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
                         <strong>${config.name}</strong><br>
-                        SL: ${slPips} punti × ${config.contractMultiplier}${config.name.includes('DAX') ? '€' : '$'}/punto = ${(slPips * config.contractMultiplier).toFixed(2)}${config.name.includes('DAX') ? '€' : '$'} per contratto<br>
+                        SL: ${slPips} punti × ${config.contractMultiplier}${config.name.includes('DAX') ? '€' : '$'}/punto = ${(slPips * config.contractMultiplier).toFixed(2)}${config.name.includes('DAX') ? '€' : '$'}/lotto<br>
                         Contratti: ${contracts.toFixed(2)} (es: ${Math.floor(contracts)} interi + ${Math.round((contracts - Math.floor(contracts)) * 100)}% del micro)
                     </div>
                     <div style="font-size: 0.85em; color: #22c55e; margin-top: 5px; font-weight: bold;">⚠️ ${config.description}</div>
@@ -481,7 +746,7 @@ function saveData() {
             alert("❌ Spazio di memoria locale PIENO! Scarica un backup per liberare spazio.");
             exportJSON();
         } else {
-            console.error('Errore salvataggio:', e);
+            console.error('Errore salvataggio:', err);
         }
     }
 }
@@ -640,14 +905,19 @@ setInterval(() => {
     }
 }, 30000);
 
-// Inizializza la data di oggi
-document.getElementById('date').valueAsDate = new Date();
-
-// Event listener per modale
-document.getElementById('imgModal').addEventListener('click', closeModal);
-
-// Load stats on page load
-renderTrades();
+// Inizializza Google API quando pagina carica
+document.addEventListener('DOMContentLoaded', () => {
+    initGoogleAPI();
+    
+    // Inizializza la data di oggi
+    document.getElementById('date').valueAsDate = new Date();
+    
+    // Event listener per modale
+    document.getElementById('imgModal').addEventListener('click', closeModal);
+    
+    // Load stats on page load
+    renderTrades();
+});
 
 // Avviso se storage è quasi pieno
 window.addEventListener('beforeunload', () => {
