@@ -1,12 +1,33 @@
-// CARICAMENTO EMAIL SALVATA
-document.getElementById('userEmail').value = localStorage.getItem('journal_user_email') || '';
+// ========================================
+// CARICAMENTO INIZIALE & STORAGE LOCAL
+// ========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const userEmailInput = document.getElementById('userEmail');
+    if (userEmailInput) {
+        userEmailInput.value = localStorage.getItem('journal_user_email') || '';
+    }
+    renderTrades();
+    updateDashboard();
+});
+
 let trades = JSON.parse(localStorage.getItem('trading_journal_data')) || [];
 
+function saveUserEmail() {
+    const email = document.getElementById('userEmail').value;
+    localStorage.setItem('journal_user_email', email);
+}
+
+function saveTradesToStorage() {
+    localStorage.setItem('trading_journal_data', JSON.stringify(trades));
+    updateDashboard();
+    renderTrades();
+}
+
 // ========================================
-// GOOGLE DRIVE INTEGRATION SETUP (GIS v3)
+// GOOGLE DRIVE INTEGRATION (GIS v3)
 // ========================================
 const GOOGLE_CONFIG = {
-    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com', // TODO: Inserisci il tuo Client ID
+    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com', // Inserisci il tuo Client ID
     SCOPES: 'https://www.googleapis.com/auth/drive.file'
 };
 
@@ -15,7 +36,6 @@ let accessToken = null;
 let googleDriveFolderId = localStorage.getItem('trading_journal_drive_folder');
 
 function initGoogleAPI() {
-    // Inizializza il client Drive
     if (window.gapi) {
         gapi.load('client', async () => {
             await gapi.client.init({});
@@ -23,7 +43,6 @@ function initGoogleAPI() {
         });
     }
 
-    // Inizializza l'autenticazione OAuth2
     if (window.google) {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: GOOGLE_CONFIG.CLIENT_ID,
@@ -120,7 +139,6 @@ async function backupToGoogleDrive() {
 
         const fileName = `Trading_Journal_${email}_${new Date().toISOString().slice(0, 10)}.json`;
         
-        // Creazione richiesta multipart per inviare JSON puro
         const metadata = {
             name: fileName,
             parents: [folderId],
@@ -141,7 +159,7 @@ async function backupToGoogleDrive() {
 
         if (file.id) {
             localStorage.setItem('trading_journal_latest_drive_backup', file.id);
-            showNotification(`✅ Backup salvato: ${fileName.substring(0, 25)}...`);
+            showNotification(`✅ Backup salvato su Drive: ${fileName}`);
         } else {
             throw new Error(file.error?.message || 'Errore durante l\'upload');
         }
@@ -153,69 +171,67 @@ async function backupToGoogleDrive() {
 }
 
 // ========================================
-// CONFIGURAZIONE ASSET (STILE METATRADER)
+// CONFIGURAZIONE ASSET METATRADER
 // ========================================
-// Ho mantenuto i tuoi ID originali così il tuo HTML continua a funzionare, 
-// ma i valori sono mappati per produrre il lotto puro come su MT4/MT5.
 const assetConfig = {
     'forex_standard': {
         name: 'Forex (EUR/USD, GBP/USD)',
-        pipValue: 10, // 1 lotto standard = 10$ a pip
-        description: 'Lotti calcolati su 1 pip = 10$'
+        pipValue: 10,
+        description: 'Lotti calcolati su Forex Standard (1 lotto = $10/pip)'
     },
     'forex_jpy': {
         name: 'Forex JPY (USD/JPY)',
-        pipValue: 8, // Approssimazione tipica
-        description: 'Lotti calcolati su 1 pip = ~8$'
+        pipValue: 8,
+        description: 'Lotti calcolati su Coppie JPY (1 lotto = ~$8/pip)'
     },
     'gold': {
         name: 'Oro (XAUUSD)',
-        pipValue: 10, // Su MT4 1 lotto = 100oz = 10$ per pip (0.10)
-        description: 'Lotti calcolati stile MT4 (1 lotto = 100oz)'
+        pipValue: 10,
+        description: 'Lotti calcolati per Oro MT4/MT5 (1 lotto = 100 oz)'
     },
     'indices_es': {
         name: 'S&P 500 (US500)',
-        pipValue: 1, // CFD Indici MT4: 1 lotto = 1$ a punto
-        description: 'Lotti calcolati: 1 punto = 1$'
+        pipValue: 1,
+        description: 'Lotti/Contratti CFD Indici (1 punto = $1)'
     },
     'indices_nq': {
         name: 'Nasdaq 100 (US100)',
         pipValue: 1,
-        description: 'Lotti calcolati: 1 punto = 1$'
+        description: 'Lotti/Contratti CFD Indici (1 punto = $1)'
     },
     'indices_dax': {
         name: 'DAX (GER40)',
         pipValue: 1,
-        description: 'Lotti calcolati: 1 punto = 1€'
+        description: 'Lotti/Contratti CFD Indici (1 punto = €1)'
     },
     'crypto_btc': {
         name: 'Bitcoin (BTCUSD)',
-        pipValue: 1, // 1 lotto MT4 = 1 BTC = 1$ di P&L ogni 1$ di movimento
-        description: 'Lotti calcolati: 1 lotto = 1 BTC'
+        pipValue: 1,
+        description: 'Lotti Crypto MT4/MT5 (1 lotto = 1 BTC)'
     },
     'crypto_eth': {
         name: 'Ethereum (ETHUSD)',
         pipValue: 1,
-        description: 'Lotti calcolati: 1 lotto = 1 ETH'
+        description: 'Lotti Crypto MT4/MT5 (1 lotto = 1 ETH)'
     }
 };
 
 // ========================================
-// CALCOLATORE LOTTAGGIO UNIFICATO
+// CALCOLATORE LOTTAGGIO
 // ========================================
 function calculateLotSize() {
     const balance = parseFloat(document.getElementById('calcBalance').value);
     const riskPercent = parseFloat(document.getElementById('calcRisk').value);
-    const slPips = parseFloat(document.getElementById('calcSlPips').value); // Che siano pip, punti o $ di SL
+    const slPips = parseFloat(document.getElementById('calcSlPips').value);
     const assetType = document.getElementById('calcAssetType').value;
 
     if (!balance || !riskPercent || !slPips || slPips <= 0) {
-        alert("Inserisci valori validi per il calcolo.");
+        alert("Compila tutti i campi con valori validi.");
         return;
     }
 
     if (!assetConfig[assetType]) {
-        alert("Tipo di asset non riconosciuto.");
+        alert("Seleziona un asset valido.");
         return;
     }
 
@@ -223,28 +239,234 @@ function calculateLotSize() {
     const riskAmount = balance * (riskPercent / 100);
     const currency = config.name.includes('DAX') ? '€' : '$';
     
-    // Formula universale per lotti MetaTrader: Rischio in Denaro / (Stop Loss * Valore di 1 Lotto)
+    // Formula standard Lotti MT: Rischio In Denaro / (StopLoss * ValorePipLotto)
     const lotSize = riskAmount / (slPips * config.pipValue);
     
-    // Il risultato restituisce SEMPRE "Lotti" come unità di misura, formattato a 2 o 3 decimali
-    let result = {
-        positionSize: lotSize.toFixed(2), 
-        unit: 'Lotti',
-        riskAmount: riskAmount.toFixed(2),
-        currency: currency,
-        details: `
-            <div style="margin-top: 8px; font-size: 0.95em;">
-                <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)}${currency}</div>
-                <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
-                    <strong>${config.name}</strong><br>
-                    Distanza SL: ${slPips} pips/punti<br>
-                </div>
-                <div style="font-size: 0.85em; color: #22c55e; margin-top: 5px; font-weight: bold;">✅ ${config.description}</div>
-            </div>
-        `
-    };
+    // Rende visibile il blocco dei risultati
+    const resultBox = document.getElementById('calcResult');
+    if (resultBox) {
+        resultBox.style.display = 'block';
+    }
 
-    // Stampa il risultato (adattalo al tuo HTML se necessario)
-    console.log(result);
-    // document.getElementById('resultOutput').innerHTML = result.positionSize + ' ' + result.unit;
+    // Scrive il numero del lotto (es. 0.60)
+    const lotText = document.getElementById('lotResultText');
+    if (lotText) {
+        lotText.textContent = lotSize.toFixed(2);
+    }
+
+    // Scrive il dettaglio del capitale rischiato
+    const riskText = document.getElementById('riskAmountText');
+    if (riskText) {
+        riskText.innerHTML = `
+            💰 <strong>Rischio Totale:</strong> ${riskAmount.toFixed(2)}${currency} (${riskPercent}%)<br>
+            <span style="color: #22c55e; font-size: 0.85em; font-weight: bold;">✅ ${config.description}</span>
+        `;
+    }
+}
+
+// ========================================
+// GESTIONE TRADES (FORM & TABELLA)
+// ========================================
+const tradeForm = document.getElementById('tradeForm');
+if (tradeForm) {
+    tradeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const imageInput = document.getElementById('imageFile');
+        let imageData = '';
+
+        if (imageInput.files && imageInput.files[0]) {
+            imageData = await convertBase64(imageInput.files[0]);
+        }
+
+        const newTrade = {
+            id: Date.now(),
+            date: document.getElementById('date').value,
+            asset: document.getElementById('asset').value.toUpperCase(),
+            strategy: document.getElementById('strategy').value,
+            direction: document.getElementById('direction').value,
+            result: document.getElementById('result').value,
+            rr: document.getElementById('rr').value,
+            profit: parseFloat(document.getElementById('profit').value) || 0,
+            image: imageData,
+            notes: document.getElementById('notes').value
+        };
+
+        trades.unshift(newTrade);
+        saveTradesToStorage();
+        tradeForm.reset();
+        showNotification('✅ Trade salvato con successo!');
+    });
+}
+
+function convertBase64(file) {
+    return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.readAsDataURL(file);
+        fileReader.onload = () => resolve(fileReader.result);
+        fileReader.onerror = (error) => reject(error);
+    });
+}
+
+function deleteTrade(id) {
+    if (confirm("Sei sicuro di voler eliminare questo trade?")) {
+        trades = trades.filter(t => t.id !== id);
+        saveTradesToStorage();
+        showNotification('🗑️ Trade eliminato.');
+    }
+}
+
+function renderTrades() {
+    const tbody = document.getElementById('tradeTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    trades.forEach(trade => {
+        const tr = document.createElement('tr');
+        
+        let resultBadge = '';
+        if (trade.result === 'WIN') resultBadge = '<span style="color:#22c55e; font-weight:bold;">🟢 WIN</span>';
+        else if (trade.result === 'LOSS') resultBadge = '<span style="color:#ef4444; font-weight:bold;">🔴 LOSS</span>';
+        else resultBadge = '<span style="color:#eab308; font-weight:bold;">🟡 BE</span>';
+
+        const imgHTML = trade.image 
+            ? `<button class="btn-secondary" style="padding: 2px 8px;" onclick="openImageModal('${trade.image}')">🖼️ Vedi</button>` 
+            : '-';
+
+        tr.innerHTML = `
+            <td>${trade.date}</td>
+            <td><strong>${trade.asset}</strong></td>
+            <td>${trade.strategy}</td>
+            <td>${trade.direction === 'LONG' ? '📈 LONG' : '📉 SHORT'}</td>
+            <td>${resultBadge}</td>
+            <td>${trade.rr}</td>
+            <td style="color: ${trade.profit >= 0 ? '#22c55e' : '#ef4444'}; font-weight: bold;">
+                ${trade.profit >= 0 ? '+' : ''}${trade.profit.toFixed(2)}
+            </td>
+            <td>${imgHTML}</td>
+            <td>${trade.notes || '-'}</td>
+            <td><button onclick="deleteTrade(${trade.id})" style="background:none; border:none; cursor:pointer; font-size:1.1em;">❌</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateDashboard() {
+    const total = trades.length;
+    const wins = trades.filter(t => t.result === 'WIN').length;
+    const losses = trades.filter(t => t.result === 'LOSS').length;
+    const be = trades.filter(t => t.result === 'BE').length;
+
+    const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
+    const totalProfit = trades.reduce((acc, t) => acc + t.profit, 0);
+
+    let totalRR = 0;
+    trades.forEach(t => {
+        if (t.result === 'WIN') {
+            const parts = t.rr.split(':');
+            if (parts.length === 2) totalRR += parseFloat(parts[1]);
+        } else if (t.result === 'LOSS') {
+            totalRR -= 1;
+        }
+    });
+
+    const elTotal = document.getElementById('statTotal');
+    const elWinRate = document.getElementById('statWinRate');
+    const elWLB = document.getElementById('statWLB');
+    const elRR = document.getElementById('statRR');
+    const elProfit = document.getElementById('statProfit');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elWinRate) elWinRate.textContent = `${winRate}%`;
+    if (elWLB) elWLB.textContent = `${wins} / ${losses} / ${be}`;
+    if (elRR) elRR.textContent = `${totalRR.toFixed(1)} R`;
+    if (elProfit) {
+        elProfit.textContent = `${totalProfit.toFixed(2)} €/$`;
+        elProfit.style.color = totalProfit >= 0 ? '#22c55e' : '#ef4444';
+    }
+}
+
+// ========================================
+// MODALE IMMAGINI & NOTIFICHE
+// ========================================
+function openImageModal(src) {
+    const modal = document.getElementById('imgModal');
+    const modalImg = document.getElementById('modalImg');
+    if (modal && modalImg) {
+        modal.style.display = "flex";
+        modalImg.src = src;
+    }
+}
+
+const closeModalBtn = document.querySelector('.close-modal');
+if (closeModalBtn) {
+    closeModalBtn.onclick = () => {
+        document.getElementById('imgModal').style.display = "none";
+    };
+}
+
+function showNotification(msg) {
+    const toast = document.createElement('div');
+    toast.textContent = msg;
+    toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px;
+        background: #1e293b; color: #fff; padding: 12px 20px;
+        border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000; animation: slideIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ========================================
+// IMPORT / EXPORT LOCALE
+// ========================================
+function exportJSON() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `trading_journal_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
+    dlAnchor.remove();
+}
+
+function importJSON(event) {
+    const fileReader = new FileReader();
+    fileReader.onload = function (e) {
+        try {
+            const importedTrades = JSON.parse(e.target.result);
+            if (Array.isArray(importedTrades)) {
+                trades = importedTrades;
+                saveTradesToStorage();
+                showNotification('✅ Backup importato con successo!');
+            } else {
+                alert('Formato file non valido.');
+            }
+        } catch (err) {
+            alert('Errore nel caricamento del file JSON.');
+        }
+    };
+    fileReader.readAsText(event.target.files[0]);
+}
+
+function exportCSV() {
+    if (trades.length === 0) {
+        alert("Nessun trade da esportare.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,Data,Asset,Strategia,Direzione,Esito,RR,Profitto,Note\n";
+    trades.forEach(t => {
+        csvContent += `"${t.date}","${t.asset}","${t.strategy}","${t.direction}","${t.result}","${t.rr}","${t.profit}","${(t.notes || '').replace(/"/g, '""')}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `report_trading_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 }
