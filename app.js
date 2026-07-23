@@ -1,20 +1,45 @@
 // ========================================
 // CARICAMENTO INIZIALE & STORAGE LOCAL
 // ========================================
+let trades = [];
+
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Carica email salvata
     const userEmailInput = document.getElementById('userEmail');
     if (userEmailInput) {
         userEmailInput.value = localStorage.getItem('journal_user_email') || '';
     }
-    renderTrades();
+
+    // 2. Carica i dati dal localStorage
+    const storedTrades = localStorage.getItem('trading_journal_data');
+    if (storedTrades) {
+        try {
+            trades = JSON.parse(storedTrades);
+        } catch (e) {
+            console.error("Errore nel parsing del localStorage:", e);
+            trades = [];
+        }
+    }
+
+    // 3. Esegui il render iniziale (UNA SOLA VOLTA)
     updateDashboard();
+    renderTrades();
+
+    // 4. Inizializza l'evento per la chiusura della modale
+    const closeModalBtn = document.querySelector('.close-modal');
+    if (closeModalBtn) {
+        closeModalBtn.onclick = () => {
+            const modal = document.getElementById('imgModal');
+            if (modal) modal.style.display = "none";
+        };
+    }
 });
 
-let trades = JSON.parse(localStorage.getItem('trading_journal_data')) || [];
-
 function saveUserEmail() {
-    const email = document.getElementById('userEmail').value;
-    localStorage.setItem('journal_user_email', email);
+    const userEmailInput = document.getElementById('userEmail');
+    if (userEmailInput) {
+        localStorage.setItem('journal_user_email', userEmailInput.value);
+    }
 }
 
 function saveTradesToStorage() {
@@ -242,19 +267,16 @@ function calculateLotSize() {
     // Formula standard Lotti MT: Rischio In Denaro / (StopLoss * ValorePipLotto)
     const lotSize = riskAmount / (slPips * config.pipValue);
     
-    // Rende visibile il blocco dei risultati
     const resultBox = document.getElementById('calcResult');
     if (resultBox) {
         resultBox.style.display = 'block';
     }
 
-    // Scrive il numero del lotto (es. 0.60)
     const lotText = document.getElementById('lotResultText');
     if (lotText) {
         lotText.textContent = lotSize.toFixed(2);
     }
 
-    // Scrive il dettaglio del capitale rischiato
     const riskText = document.getElementById('riskAmountText');
     if (riskText) {
         riskText.innerHTML = `
@@ -275,7 +297,7 @@ if (tradeForm) {
         const imageInput = document.getElementById('imageFile');
         let imageData = '';
 
-        if (imageInput.files && imageInput.files[0]) {
+        if (imageInput && imageInput.files && imageInput.files[0]) {
             imageData = await convertBase64(imageInput.files[0]);
         }
 
@@ -399,13 +421,6 @@ function openImageModal(src) {
     }
 }
 
-const closeModalBtn = document.querySelector('.close-modal');
-if (closeModalBtn) {
-    closeModalBtn.onclick = () => {
-        document.getElementById('imgModal').style.display = "none";
-    };
-}
-
 function showNotification(msg) {
     const toast = document.createElement('div');
     toast.textContent = msg;
@@ -448,7 +463,9 @@ function importJSON(event) {
             alert('Errore nel caricamento del file JSON.');
         }
     };
-    fileReader.readAsText(event.target.files[0]);
+    if (event.target.files && event.target.files[0]) {
+        fileReader.readAsText(event.target.files[0]);
+    }
 }
 
 function exportCSV() {
