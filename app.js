@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 3. Esegui il render iniziale (UNA SOLA VOLTA)
+    // 3. Esegui il render iniziale
     updateDashboard();
     renderTrades();
 
@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modal) modal.style.display = "none";
         };
     }
+
+    // 5. Prova a inizializzare Google API se gli script sono già stati caricati
+    initGoogleAPI();
 });
 
 function saveUserEmail() {
@@ -52,7 +55,7 @@ function saveTradesToStorage() {
 // GOOGLE DRIVE INTEGRATION (GIS v3)
 // ========================================
 const GOOGLE_CONFIG = {
-    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com', // Inserisci il tuo Client ID
+    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com', // <--- Incolla qui il tuo Client ID da Google Cloud Console
     SCOPES: 'https://www.googleapis.com/auth/drive.file'
 };
 
@@ -61,25 +64,35 @@ let accessToken = null;
 let googleDriveFolderId = localStorage.getItem('trading_journal_drive_folder');
 
 function initGoogleAPI() {
-    if (window.gapi) {
+    // Inizializza gapi se disponibile
+    if (window.gapi && (!gapi.client || !gapi.client.drive)) {
         gapi.load('client', async () => {
-            await gapi.client.init({});
-            await gapi.client.load('drive', 'v3');
+            try {
+                await gapi.client.init({});
+                await gapi.client.load('drive', 'v3');
+            } catch (err) {
+                console.error("Errore caricamento gapi client:", err);
+            }
         });
     }
 
-    if (window.google) {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CONFIG.CLIENT_ID,
-            scope: GOOGLE_CONFIG.SCOPES,
-            callback: (tokenResponse) => {
-                if (tokenResponse && tokenResponse.access_token) {
-                    accessToken = tokenResponse.access_token;
-                    updateGoogleAuthUI(true);
-                    showNotification('✅ Connesso a Google Drive');
-                }
-            },
-        });
+    // Inizializza tokenClient per OAuth2 GIS v3
+    if (window.google && window.google.accounts && window.google.accounts.oauth2 && !tokenClient) {
+        try {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CONFIG.CLIENT_ID,
+                scope: GOOGLE_CONFIG.SCOPES,
+                callback: (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        accessToken = tokenResponse.access_token;
+                        updateGoogleAuthUI(true);
+                        showNotification('✅ Connesso a Google Drive');
+                    }
+                },
+            });
+        } catch (err) {
+            console.error("Errore inizializzazione TokenClient:", err);
+        }
     }
 }
 
@@ -98,8 +111,13 @@ function updateGoogleAuthUI(isConnected) {
 }
 
 function toggleGoogleSignIn() {
+    // Se non è pronto, riprova a inizializzarlo al momento del click
     if (!tokenClient) {
-        alert('⚠️ Google API non ancora pronta. Attendi qualche secondo.');
+        initGoogleAPI();
+    }
+
+    if (!tokenClient) {
+        alert('⚠️ Impossibile connettersi a Google Drive. Assicurati di aver inserito un Client ID valido nel codice e di usare un server locale (es. Live Server).');
         return;
     }
     
@@ -264,7 +282,6 @@ function calculateLotSize() {
     const riskAmount = balance * (riskPercent / 100);
     const currency = config.name.includes('DAX') ? '€' : '$';
     
-    // Formula standard Lotti MT: Rischio In Denaro / (StopLoss * ValorePipLotto)
     const lotSize = riskAmount / (slPips * config.pipValue);
     
     const resultBox = document.getElementById('calcResult');
