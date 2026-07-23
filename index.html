@@ -44,6 +44,10 @@
             <div class="lbl">R:R Cumulativo</div>
             <div class="val" id="statRR">0 R</div>
         </div>
+        <div class="stat-card">
+            <div class="lbl">Profitto/Perdita</div>
+            <div class="val" id="statProfit">0 €/$</div>
+        </div>
     </div>
 
     <!-- CALCOLATORE LOTTAGGIO -->
@@ -65,8 +69,14 @@
             <div class="form-group">
                 <label for="calcAssetType">Tipo di Asset</label>
                 <select id="calcAssetType">
-                    <option value="forex">Forex Standard (1 Lotto = 10$/pip)</option>
-                    <option value="crypto_index">Indici / Crypto / Azioni</option>
+                    <option value="forex_standard">Forex Standard (EUR/USD, GBP/USD)</option>
+                    <option value="forex_jpy">Forex JPY (USD/JPY, EUR/JPY)</option>
+                    <option value="gold">Oro (XAUUSD)</option>
+                    <option value="indices_es">Indici - S&P 500 (ES) - Futures</option>
+                    <option value="indices_nq">Indici - Nasdaq (NQ) - Futures</option>
+                    <option value="indices_dax">Indici - DAX - Futures</option>
+                    <option value="crypto_btc">Crypto - Bitcoin (BTC) - Futures</option>
+                    <option value="crypto_eth">Crypto - Ethereum (ETH) - Futures</option>
                 </select>
             </div>
         </div>
@@ -74,8 +84,10 @@
             <button type="button" class="btn-primary" onclick="calculateLotSize()">⚡ Calcola Lotti</button>
         </div>
         <div id="calcResult" class="result-box" style="display:none;">
-            Taglia Posizione: <strong id="lotResultText">0.00</strong> Lotti
-            <div id="riskAmountText"></div>
+            <div style="font-size: 1.2em; margin-bottom: 10px;">
+                <strong>Taglia Posizione: <span id="lotResultText">0.00</span> Lotti/Contratti</strong>
+            </div>
+            <div id="riskAmountText" style="font-size: 0.95em;"></div>
         </div>
     </div>
 
@@ -127,6 +139,10 @@
                         <option value="1:5">1 : 5</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="profit">Profitto/Perdita (€ / $)</label>
+                    <input type="number" id="profit" placeholder="0.00" step="0.01">
+                </div>
                 <div class="form-group full-width">
                     <label for="imageFile">Screenshot (Galleria / Foto)</label>
                     <input type="file" id="imageFile" accept="image/*">
@@ -155,6 +171,7 @@
                         <th>Direzione</th>
                         <th>Esito</th>
                         <th>R:R</th>
+                        <th>Profitto</th>
                         <th>Foto</th>
                         <th>Note</th>
                         <th>Azione</th>
