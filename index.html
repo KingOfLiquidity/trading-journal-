@@ -6,8 +6,8 @@
     <title>Trading Journal & Tools</title>
     <link rel="stylesheet" href="style.css">
     
-    <!-- Script ufficiali Google Drive API (GIS v3) -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Script ufficiali Google Drive API (GIS v3) con callback di caricamento -->
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleAPI()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="initGoogleAPI()"></script>
 </head>
 <body>
@@ -61,7 +61,7 @@
         </div>
     </div>
 
-    <!-- 1. CALCOLATORE LOTTAGGIO -->
+    <!-- CALCOLATORE LOTTAGGIO -->
     <div class="card">
         <h2>🧮 Calcolatore Lottaggio Posizione</h2>
         <div class="form-grid">
@@ -102,7 +102,7 @@
         </div>
     </div>
 
-    <!-- 2. FORM NUOVA OPERAIONE -->
+    <!-- FORM INSERIMENTO OPERAZIONI -->
     <div class="card">
         <h2>📝 Nuova Operazione</h2>
         <form id="tradeForm">
@@ -169,7 +169,7 @@
         </form>
     </div>
 
-    <!-- 3. TABELLA STORICO OPERAZIONI -->
+    <!-- TABELLA STORICO -->
     <div class="card">
         <h2>📋 Storico Operazioni</h2>
         <div class="table-responsive">
@@ -199,6 +199,19 @@
     <span class="close-modal">&times;</span>
     <img id="modalImg" src="" alt="Trade screenshot">
 </div>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
 
 <script src="app.js"></script>
 </body>
