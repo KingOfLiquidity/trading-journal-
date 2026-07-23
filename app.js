@@ -1,5 +1,3 @@
-document.getElementById('date').valueAsDate = new Date();
-
 // CARICAMENTO EMAIL SALVATA
 document.getElementById('userEmail').value = localStorage.getItem('journal_user_email') || '';
 
@@ -7,6 +5,14 @@ let trades = JSON.parse(localStorage.getItem('trading_journal_data')) || [];
 
 function saveUserEmail() {
     const email = document.getElementById('userEmail').value.trim();
+    if (!email) {
+        alert("Inserisci un'email valida");
+        return;
+    }
+    if (!email.includes('@')) {
+        alert("L'email non è valida");
+        return;
+    }
     localStorage.setItem('journal_user_email', email);
 }
 
@@ -33,6 +39,12 @@ function calculateLotSize() {
 // COMPRESSIONE AD ALTA EFFICIENZA (EVITA CRASH CHROME E RIGONFIAMENTO MEMORIA)
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
+        // Validazione tipo file
+        if (!file.type.startsWith('image/')) {
+            reject(new Error("Seleziona un file immagine valido"));
+            return;
+        }
+
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = (e) => {
@@ -40,7 +52,7 @@ function fileToBase64(file) {
             img.src = e.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 400; // Ridotto a 400px per alleggerire la RAM
+                const MAX_WIDTH = 400;
                 let scale = 1;
                 
                 if (img.width > MAX_WIDTH) {
@@ -52,12 +64,11 @@ function fileToBase64(file) {
 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // Compressione JPEG al 30% per risparmiare memoria
                 resolve(canvas.toDataURL('image/jpeg', 0.3)); 
             };
-            img.onerror = error => reject(error);
+            img.onerror = error => reject(new Error("Errore nel caricamento dell'immagine"));
         };
-        reader.onerror = error => reject(error);
+        reader.onerror = error => reject(new Error("Errore nella lettura del file"));
     });
 }
 
@@ -87,7 +98,7 @@ function updateStats() {
         }
     });
 
-    const winRate = Math.round((wins / total) * 100);
+    const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
 
     document.getElementById('statTotal').innerText = total;
     document.getElementById('statWinRate').innerText = `${winRate}%`;
@@ -113,24 +124,31 @@ function renderTrades() {
         if (trade.result === 'BE') badgeClass = 'badge-be';
 
         const imgHtml = trade.image 
-            ? `<img src="${trade.image}" class="img-thumb" onclick="openModal('${trade.image}')">` 
+            ? `<img src="${escapeHtml(trade.image)}" class="img-thumb" onclick="openModal(this.src)" alt="Trade photo">` 
             : '-';
 
         tr.innerHTML = `
-            <td>${trade.date}</td>
-            <td><strong>${trade.asset}</strong></td>
-            <td>${trade.strategy}</td>
-            <td>${trade.direction}</td>
-            <td><span class="badge ${badgeClass}">${trade.result}</span></td>
-            <td>${trade.rr}</td>
+            <td>${escapeHtml(trade.date)}</td>
+            <td><strong>${escapeHtml(trade.asset)}</strong></td>
+            <td>${escapeHtml(trade.strategy)}</td>
+            <td>${escapeHtml(trade.direction)}</td>
+            <td><span class="badge ${badgeClass}">${escapeHtml(trade.result)}</span></td>
+            <td>${escapeHtml(trade.rr)}</td>
             <td>${imgHtml}</td>
-            <td>${trade.notes || '-'}</td>
+            <td>${escapeHtml(trade.notes || '-')}</td>
             <td><button class="btn-danger" style="padding:4px 8px;" onclick="deleteTrade(${index})">🗑️</button></td>
         `;
         tbody.appendChild(tr);
     });
 
     updateStats();
+}
+
+// FUNZIONE PER ESCAPE HTML (SICUREZZA)
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // INSERIMENTO TRADE
@@ -143,7 +161,9 @@ document.getElementById('tradeForm').addEventListener('submit', async function(e
         try {
             imageData = await fileToBase64(fileInput.files[0]);
         } catch (err) {
+            alert("Errore nel caricamento della foto: " + err.message);
             console.error("Errore foto", err);
+            return;
         }
     }
 
@@ -164,7 +184,33 @@ document.getElementById('tradeForm').addEventListener('submit', async function(e
 
     this.reset();
     document.getElementById('date').valueAsDate = new Date();
+    
+    showNotification('✅ Trade salvato con successo!');
 });
+
+// NOTIFICA
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #22c55e;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        z-index: 9999;
+        animation: slideIn 0.3s ease-in-out;
+    `;
+    notification.innerText = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}
 
 // SALVATAGGIO CON PROTEZIONE ANTI-CRASH
 function saveData() {
@@ -181,12 +227,20 @@ function deleteTrade(index) {
         trades.splice(index, 1);
         saveData();
         renderTrades();
+        showNotification('🗑️ Trade eliminato');
     }
 }
 
 function openModal(imgSrc) {
     document.getElementById('modalImg').src = imgSrc;
-    document.getElementById('imgModal').style.display = 'flex';
+    document.getElementById('imgModal').classList.add('show');
+}
+
+function closeModal(event) {
+    const modal = document.getElementById('imgModal');
+    if (event.target === modal || event.target.classList.contains('close-modal')) {
+        modal.classList.remove('show');
+    }
 }
 
 // ESPORTAZIONE CSV
@@ -213,6 +267,7 @@ function exportCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showNotification('📥 CSV esportato');
 }
 
 // BACKUP JSON CON DETTAGLIO EMAIL ACCOUNT
@@ -237,6 +292,7 @@ function exportJSON() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showNotification('💾 Backup scaricato');
 }
 
 // RIPRISTINO BACKUP COMPATIBILE CON VECCHI E NUOVI FORMATI
@@ -249,7 +305,6 @@ function importJSON(event) {
         try {
             const importedData = JSON.parse(e.target.result);
             
-            // Supporta sia l'importazione diretta di array che la struttura con account email
             if (Array.isArray(importedData)) {
                 trades = importedData;
             } else if (importedData && Array.isArray(importedData.trades)) {
@@ -265,7 +320,7 @@ function importJSON(event) {
 
             saveData();
             renderTrades();
-            alert("Backup ricaricato con successo!");
+            showNotification('📂 Backup ricaricato!');
         } catch (err) {
             alert("Errore durante la lettura del file di backup.");
         }
@@ -274,5 +329,11 @@ function importJSON(event) {
 
     reader.readAsText(file);
 }
+
+// Inizializza la data di oggi
+document.getElementById('date').valueAsDate = new Date();
+
+// Event listener per modale
+document.getElementById('imgModal').addEventListener('click', closeModal);
 
 renderTrades();
