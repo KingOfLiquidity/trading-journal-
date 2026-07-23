@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal</title>
+    <title>Trading Journal & Tools</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Script ufficiali Google Drive API (GIS v3) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer onload="initGoogleAPI()"></script>
 </head>
 <body>
 
@@ -19,6 +23,13 @@
             </div>
         </div>
         <div class="actions-bar">
+            <!-- PULSANTI GOOGLE DRIVE INTEGRATI -->
+            <button id="googleDriveBtn" class="btn-secondary" onclick="toggleGoogleSignIn()">☁️ Connetti a Drive</button>
+            <div id="driveButtons" style="display: none; gap: 8px;">
+                <button class="btn-primary" onclick="backupToGoogleDrive()">☁️ Backup su Drive</button>
+            </div>
+
+            <!-- PULSANTI BACKUP E REPORT LOCALI -->
             <button class="btn-excel" onclick="exportCSV()">📥 Esporta Report (.csv)</button>
             <button class="btn-secondary" onclick="exportJSON()">💾 Scarica Backup</button>
             <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -72,20 +83,20 @@
                     <option value="forex_standard">Forex Standard (EUR/USD, GBP/USD)</option>
                     <option value="forex_jpy">Forex JPY (USD/JPY, EUR/JPY)</option>
                     <option value="gold">Oro (XAUUSD)</option>
-                    <option value="indices_es">Indici - S&P 500 (ES) - Futures</option>
-                    <option value="indices_nq">Indici - Nasdaq (NQ) - Futures</option>
-                    <option value="indices_dax">Indici - DAX - Futures</option>
-                    <option value="crypto_btc">Crypto - Bitcoin (BTC) - Futures</option>
-                    <option value="crypto_eth">Crypto - Ethereum (ETH) - Futures</option>
+                    <option value="indices_es">Indici - S&P 500 (ES)</option>
+                    <option value="indices_nq">Indici - Nasdaq (NQ)</option>
+                    <option value="indices_dax">Indici - DAX (GER40)</option>
+                    <option value="crypto_btc">Crypto - Bitcoin (BTC)</option>
+                    <option value="crypto_eth">Crypto - Ethereum (ETH)</option>
                 </select>
             </div>
         </div>
         <div class="actions-bar">
             <button type="button" class="btn-primary" onclick="calculateLotSize()">⚡ Calcola Lotti</button>
         </div>
-        <div id="calcResult" class="result-box" style="display:none;">
-            <div style="font-size: 1.2em; margin-bottom: 10px;">
-                <strong>Taglia Posizione: <span id="lotResultText">0.00</span> Lotti/Contratti</strong>
+        <div id="calcResult" class="result-box" style="display:none; margin-top: 15px; padding: 15px; background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; border-radius: 8px;">
+            <div style="font-size: 1.2em; margin-bottom: 5px;">
+                <strong>Taglia Posizione: <span id="lotResultText" style="color: #22c55e; font-size: 1.3em;">0.00</span> Lotti</strong>
             </div>
             <div id="riskAmountText" style="font-size: 0.95em;"></div>
         </div>
@@ -184,7 +195,224 @@
 </div>
 
 <!-- MODALE FOTO -->
-<div id="imgModal" class="modal">
+<div id="imgModal" class="modal" style="display:none;">
+    <span class="close-modal">&times;</span>
+    <img id="modalImg" src="" alt="Trade screenshot">
+</div>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script src="app.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal & Tools</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Script ufficiali Google Drive API (GIS v3) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer onload="initGoogleAPI()"></script>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>📊 Trading Journal & Tools</h1>
+            <!-- CAMPO ACCOUNT EMAIL -->
+            <div class="form-group email-header">
+                <label for="userEmail">Account Trader (Email):</label>
+                <input type="email" id="userEmail" placeholder="tua.email@example.com" onchange="saveUserEmail()">
+            </div>
+        </div>
+        <div class="actions-bar">
+            <!-- PULSANTI GOOGLE DRIVE INTEGRATI -->
+            <button id="googleDriveBtn" class="btn-secondary" onclick="toggleGoogleSignIn()">☁️ Connetti a Drive</button>
+            <div id="driveButtons" style="display: none; gap: 8px;">
+                <button class="btn-primary" onclick="backupToGoogleDrive()">☁️ Backup su Drive</button>
+            </div>
+
+            <!-- PULSANTI BACKUP E REPORT LOCALI -->
+            <button class="btn-excel" onclick="exportCSV()">📥 Esporta Report (.csv)</button>
+            <button class="btn-secondary" onclick="exportJSON()">💾 Scarica Backup</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+            <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Carica Backup</button>
+        </div>
+    </header>
+
+    <!-- DASHBOARD STATISTICHE -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="lbl">Trade Totali</div>
+            <div class="val" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">Win Rate</div>
+            <div class="val" id="statWinRate">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">Esiti (W / L / BE)</div>
+            <div class="val" id="statWLB">0 / 0 / 0</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">R:R Cumulativo</div>
+            <div class="val" id="statRR">0 R</div>
+        </div>
+        <div class="stat-card">
+            <div class="lbl">Profitto/Perdita</div>
+            <div class="val" id="statProfit">0 €/$</div>
+        </div>
+    </div>
+
+    <!-- CALCOLATORE LOTTAGGIO -->
+    <div class="card">
+        <h2>🧮 Calcolatore Lottaggio Posizione</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="calcBalance">Capitale Conto (€ / $)</label>
+                <input type="number" id="calcBalance" value="10000" min="1" step="100">
+            </div>
+            <div class="form-group">
+                <label for="calcRisk">Rischio (%)</label>
+                <input type="number" id="calcRisk" step="0.1" value="1" min="0.1" max="10">
+            </div>
+            <div class="form-group">
+                <label for="calcSlPips">Stop Loss (Pips / Punti)</label>
+                <input type="number" id="calcSlPips" value="20" min="1" step="1">
+            </div>
+            <div class="form-group">
+                <label for="calcAssetType">Tipo di Asset</label>
+                <select id="calcAssetType">
+                    <option value="forex_standard">Forex Standard (EUR/USD, GBP/USD)</option>
+                    <option value="forex_jpy">Forex JPY (USD/JPY, EUR/JPY)</option>
+                    <option value="gold">Oro (XAUUSD)</option>
+                    <option value="indices_es">Indici - S&P 500 (ES)</option>
+                    <option value="indices_nq">Indici - Nasdaq (NQ)</option>
+                    <option value="indices_dax">Indici - DAX (GER40)</option>
+                    <option value="crypto_btc">Crypto - Bitcoin (BTC)</option>
+                    <option value="crypto_eth">Crypto - Ethereum (ETH)</option>
+                </select>
+            </div>
+        </div>
+        <div class="actions-bar">
+            <button type="button" class="btn-primary" onclick="calculateLotSize()">⚡ Calcola Lotti</button>
+        </div>
+        <div id="calcResult" class="result-box" style="display:none; margin-top: 15px; padding: 15px; background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; border-radius: 8px;">
+            <div style="font-size: 1.2em; margin-bottom: 5px;">
+                <strong>Taglia Posizione: <span id="lotResultText" style="color: #22c55e; font-size: 1.3em;">0.00</span> Lotti</strong>
+            </div>
+            <div id="riskAmountText" style="font-size: 0.95em;"></div>
+        </div>
+    </div>
+
+    <!-- FORM INSERIMENTO -->
+    <div class="card">
+        <h2>📝 Nuova Operazione</h2>
+        <form id="tradeForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="date">Data</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="asset">Asset / Coppia</label>
+                    <input type="text" id="asset" placeholder="es. EUR/USD" required>
+                </div>
+                <div class="form-group">
+                    <label for="strategy">Strategia</label>
+                    <input type="text" id="strategy" placeholder="es. Breakout" required>
+                </div>
+                <div class="form-group">
+                    <label for="direction">Direzione</label>
+                    <select id="direction" required>
+                        <option value="">-- Seleziona --</option>
+                        <option value="LONG">LONG 📈</option>
+                        <option value="SHORT">SHORT 📉</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="result">Esito</label>
+                    <select id="result" required>
+                        <option value="">-- Seleziona --</option>
+                        <option value="WIN">WIN 🟢</option>
+                        <option value="LOSS">LOSS 🔴</option>
+                        <option value="BE">BE 🟡</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="rr">R : R</label>
+                    <select id="rr" required>
+                        <option value="">-- Seleziona --</option>
+                        <option value="1:0.5">1 : 0.5</option>
+                        <option value="1:1">1 : 1</option>
+                        <option value="1:1.5">1 : 1.5</option>
+                        <option value="1:2" selected>1 : 2</option>
+                        <option value="1:2.5">1 : 2.5</option>
+                        <option value="1:3">1 : 3</option>
+                        <option value="1:4">1 : 4</option>
+                        <option value="1:5">1 : 5</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="profit">Profitto/Perdita (€ / $)</label>
+                    <input type="number" id="profit" placeholder="0.00" step="0.01">
+                </div>
+                <div class="form-group full-width">
+                    <label for="imageFile">Screenshot (Galleria / Foto)</label>
+                    <input type="file" id="imageFile" accept="image/*">
+                </div>
+                <div class="form-group full-width">
+                    <label for="notes">Note</label>
+                    <textarea id="notes" rows="2" placeholder="Note sulla gestione..."></textarea>
+                </div>
+            </div>
+            <div class="actions-bar">
+                <button type="submit" class="btn-primary">💾 Salva Trade</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- TABELLA STORICO -->
+    <div class="card">
+        <h2>📋 Storico Operazioni</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Asset</th>
+                        <th>Strategia</th>
+                        <th>Direzione</th>
+                        <th>Esito</th>
+                        <th>R:R</th>
+                        <th>Profitto</th>
+                        <th>Foto</th>
+                        <th>Note</th>
+                        <th>Azione</th>
+                    </tr>
+                </thead>
+                <tbody id="tradeTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODALE FOTO -->
+<div id="imgModal" class="modal" style="display:none;">
     <span class="close-modal">&times;</span>
     <img id="modalImg" src="" alt="Trade screenshot">
 </div>
