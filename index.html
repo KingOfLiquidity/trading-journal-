@@ -52,15 +52,15 @@
         <div class="form-grid">
             <div class="form-group">
                 <label for="calcBalance">Capitale Conto (€ / $)</label>
-                <input type="number" id="calcBalance" value="10000">
+                <input type="number" id="calcBalance" value="10000" min="1" step="100">
             </div>
             <div class="form-group">
                 <label for="calcRisk">Rischio (%)</label>
-                <input type="number" id="calcRisk" step="0.1" value="1">
+                <input type="number" id="calcRisk" step="0.1" value="1" min="0.1" max="10">
             </div>
             <div class="form-group">
                 <label for="calcSlPips">Stop Loss (Pips / Punti)</label>
-                <input type="number" id="calcSlPips" value="20">
+                <input type="number" id="calcSlPips" value="20" min="1" step="1">
             </div>
             <div class="form-group">
                 <label for="calcAssetType">Tipo di Asset</label>
@@ -98,14 +98,16 @@
                 </div>
                 <div class="form-group">
                     <label for="direction">Direzione</label>
-                    <select id="direction">
+                    <select id="direction" required>
+                        <option value="">-- Seleziona --</option>
                         <option value="LONG">LONG 📈</option>
                         <option value="SHORT">SHORT 📉</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="result">Esito</label>
-                    <select id="result">
+                    <select id="result" required>
+                        <option value="">-- Seleziona --</option>
                         <option value="WIN">WIN 🟢</option>
                         <option value="LOSS">LOSS 🔴</option>
                         <option value="BE">BE 🟡</option>
@@ -114,6 +116,7 @@
                 <div class="form-group">
                     <label for="rr">R : R</label>
                     <select id="rr" required>
+                        <option value="">-- Seleziona --</option>
                         <option value="1:0.5">1 : 0.5</option>
                         <option value="1:1">1 : 1</option>
                         <option value="1:1.5">1 : 1.5</option>
@@ -164,10 +167,28 @@
 </div>
 
 <!-- MODALE FOTO -->
-<div id="imgModal" class="modal" onclick="this.style.display='none'">
+<div id="imgModal" class="modal" onclick="closeModal(event)">
+    <span class="close-modal">&times;</span>
     <img id="modalImg" src="" alt="Zoom">
 </div>
 
 <script src="app.js"></script>
+<script>
+    // Inizializza la data di oggi
+    document.getElementById('date').valueAsDate = new Date();
+
+    // Chiudi modale quando clicchi fuori dall'immagine
+    function closeModal(event) {
+        const modal = document.getElementById('imgModal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Previeni la chiusura quando clicchi sull'immagine
+    document.getElementById('modalImg').onclick = function(event) {
+        event.stopPropagation();
+    };
+</script>
 </body>
 </html>
