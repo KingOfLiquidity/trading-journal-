@@ -197,7 +197,7 @@ function exportCSV() {
     }
 
     const email = localStorage.getItem('journal_user_email') || 'Account_Generico';
-    let csvRows = [`"Account Trader: ${email}"`],
+    let csvRows = [`"Account Trader: ${email}"`];
     csvRows.push("Data,Asset,Strategia,Direzione,Esito,RR,Note");
     
     trades.forEach(t => {
