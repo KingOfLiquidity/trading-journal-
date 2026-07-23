@@ -17,53 +17,237 @@ function saveUserEmail() {
     showNotification('✅ Email salvata');
 }
 
-// MOLTIPLICATORI PER DIFFERENTI ASSET CLASSES
-const assetMultipliers = {
-    'forex_standard': 10,      // EUR/USD, GBP/USD (1 pip = $10/lotto)
-    'forex_jpy': 8,            // USD/JPY e coppie JPY (1 pip = $8/lotto circa)
-    'gold': 10,                // XAUUSD (1 pip = $10/lotto)
-    'indices_es': 50,          // E-mini S&P 500 ($50/punto)
-    'indices_nq': 20,          // E-mini Nasdaq ($20/punto)
-    'indices_dax': 25,         // DAX futures (€25/punto)
-    'crypto_btc': 100,         // BTC futures (scalate)
-    'crypto_eth': 50,          // ETH futures
+// ========================================
+// CONFIGURAZIONE PRECISA PER ASSET CLASSES
+// ========================================
+const assetConfig = {
+    // FOREX STANDARD (1:100 leverage tipico)
+    'forex_standard': {
+        name: 'EUR/USD, GBP/USD, USD/CHF',
+        type: 'forex_pip',
+        lotSize: 100000,              // 1 lotto standard = 100k unità
+        pipValue: 10,                 // 1 pip = $10 per lotto
+        pipDecimals: 4,               // EUR/USD ha 4 decimali (0.0001)
+        description: '✅ Lotti standard Forex'
+    },
+    
+    // FOREX JPY (1:100 leverage tipico - pip più grande)
+    'forex_jpy': {
+        name: 'USD/JPY, EUR/JPY, GBP/JPY',
+        type: 'forex_pip',
+        lotSize: 100000,
+        pipValue: 8,                  // 1 pip JPY = ~$8 per lotto (perché JPY ha 2 decimali)
+        pipDecimals: 2,               // USD/JPY ha 2 decimali (0.01)
+        description: '✅ Forex coppie JPY'
+    },
+    
+    // ORO XAUUSD (spot trading, non futures)
+    'gold': {
+        name: 'Oro (XAUUSD)',
+        type: 'commodity_unit',
+        lotSize: 1,                   // Spesso 1 lotto = 1 oz d'oro
+        unitValue: 0.1,               // Valore di 1 unità movimento (tipicamente $0.10 per oz)
+        unitDecimals: 1,              // XAUUSD ha 1 decimale (movimento minimo = $0.1)
+        description: '📊 Commodity: 1 Oz'
+    },
+    
+    // E-MINI S&P 500 FUTURES (Micro)
+    'indices_es': {
+        name: 'E-mini S&P 500 (ES)',
+        type: 'futures_contract',
+        contractMultiplier: 50,       // 1 punto × $50 = P&L
+        pointValue: 1,                // Movimento di 1 punto indice
+        tickValue: 12.50,             // 1 tick (0.25 punto) = $12.50
+        minMove: 0.25,                // Minimo movimento
+        description: '📊 Futures: $50/punto'
+    },
+    
+    // E-MINI NASDAQ 100 FUTURES
+    'indices_nq': {
+        name: 'E-mini Nasdaq 100 (NQ)',
+        type: 'futures_contract',
+        contractMultiplier: 20,       // 1 punto × $20 = P&L
+        pointValue: 1,
+        tickValue: 5,                 // 1 tick (0.25 punto) = $5
+        minMove: 0.25,
+        description: '📊 Futures: $20/punto'
+    },
+    
+    // DAX FUTURES
+    'indices_dax': {
+        name: 'DAX Futures (FDAX)',
+        type: 'futures_contract',
+        contractMultiplier: 25,       // 1 punto × €25 = P&L (in EUR)
+        pointValue: 1,
+        tickValue: 1,                 // 1 tick = €1
+        minMove: 1,                   // Minimo movimento = 1 punto
+        description: '📊 Futures: €25/punto'
+    },
+    
+    // BITCOIN FUTURES PERPETUI (USDT/USD)
+    'crypto_btc': {
+        name: 'Bitcoin Perpetui (BTC)',
+        type: 'crypto_perpetual',
+        contractSize: 1,              // 1 contratto = 1 BTC
+        quoteAsset: 'USDT',
+        leverage: 20,                 // Leverage max (gestito dall'utente)
+        description: '💰 Perpetui: 1 contratto = 1 BTC'
+    },
+    
+    // ETHEREUM FUTURES PERPETUI (USDT/USD)
+    'crypto_eth': {
+        name: 'Ethereum Perpetui (ETH)',
+        type: 'crypto_perpetual',
+        contractSize: 1,              // 1 contratto = 1 ETH
+        quoteAsset: 'USDT',
+        leverage: 20,
+        description: '💰 Perpetui: 1 contratto = 1 ETH'
+    }
 };
 
-// CALCOLATORE LOTTAGGIO CORRETTO PER ASSET CLASSES
+// ========================================
+// CALCOLATORE LOTTAGGIO CORRETTO
+// ========================================
 function calculateLotSize() {
     const balance = parseFloat(document.getElementById('calcBalance').value);
     const riskPercent = parseFloat(document.getElementById('calcRisk').value);
     const slPips = parseFloat(document.getElementById('calcSlPips').value);
     const assetType = document.getElementById('calcAssetType').value;
 
+    // Validazione input
     if (!balance || !riskPercent || !slPips || slPips <= 0) {
         alert("Inserisci valori validi per il calcolo.");
         return;
     }
 
-    // Validazione asset type
-    if (!assetMultipliers[assetType]) {
+    if (!assetConfig[assetType]) {
         alert("Tipo di asset non riconosciuto. Seleziona un'opzione valida.");
         return;
     }
 
+    const config = assetConfig[assetType];
     const riskAmount = balance * (riskPercent / 100);
-    const multiplier = assetMultipliers[assetType];
-    const lotSize = riskAmount / (slPips * multiplier);
-    const totalRiskExposure = slPips * multiplier * lotSize;
+    
+    let result = {};
 
-    document.getElementById('lotResultText').innerText = lotSize.toFixed(3);
-    document.getElementById('riskAmountText').innerHTML = `
-        <div style="margin-top: 8px; font-size: 0.95em;">
-            <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)} €/$</div>
-            <div>📊 Esposizione SL: ${totalRiskExposure.toFixed(2)} €/$</div>
-            <div style="font-size: 0.85em; color: #888; margin-top: 5px;">
-                ${assetType.includes('indices') ? '⚠️ Contratti futures (non lotti)' : 
-                  assetType.includes('crypto') ? '⚠️ Contratti perpetui (scalare prudentemente)' : 
-                  '✅ Lotti standard forex'}
-            </div>
-        </div>
-    `;
+    // ========== FOREX (Pip-based) ==========
+    if (config.type === 'forex_pip') {
+        // Formula: Lot Size = Risk Amount / (SL in Pips × Pip Value)
+        const lotSize = riskAmount / (slPips * config.pipValue);
+        const totalRiskExposure = slPips * config.pipValue * lotSize;
+        
+        result = {
+            positionSize: lotSize.toFixed(3),
+            unit: 'Lotti',
+            riskAmount: riskAmount.toFixed(2),
+            totalExposure: totalRiskExposure.toFixed(2),
+            currency: '$',
+            details: `
+                <div style="margin-top: 8px; font-size: 0.95em;">
+                    <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)}$</div>
+                    <div>📊 Esposizione SL: ${totalRiskExposure.toFixed(2)}$</div>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
+                        <strong>${config.name}</strong><br>
+                        SL: ${slPips} pips × ${config.pipValue}$ = ${(slPips * config.pipValue).toFixed(2)}$ per lotto<br>
+                        Lotti da aprire: ${lotSize.toFixed(3)}
+                    </div>
+                    <div style="font-size: 0.85em; color: #22c55e; margin-top: 5px; font-weight: bold;">✅ ${config.description}</div>
+                </div>
+            `
+        };
+    }
+
+    // ========== MATERIE PRIME (Oro, etc - Unit Based) ==========
+    else if (config.type === 'commodity_unit') {
+        // Formula: Position Size = Risk Amount / (SL in Unità × Valore Unitario)
+        const positionSize = riskAmount / (slPips * config.unitValue);
+        const totalRiskExposure = slPips * config.unitValue * positionSize;
+        
+        result = {
+            positionSize: positionSize.toFixed(2),
+            unit: 'Oz',
+            riskAmount: riskAmount.toFixed(2),
+            totalExposure: totalRiskExposure.toFixed(2),
+            currency: '$',
+            details: `
+                <div style="margin-top: 8px; font-size: 0.95em;">
+                    <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)}$</div>
+                    <div>📊 Esposizione SL: ${totalRiskExposure.toFixed(2)}$</div>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
+                        <strong>${config.name}</strong><br>
+                        SL: ${slPips} unità × ${config.unitValue}$ = ${(slPips * config.unitValue).toFixed(2)}$ per lotto<br>
+                        Posizione: ${positionSize.toFixed(2)} Oz
+                    </div>
+                    <div style="font-size: 0.85em; color: #22c55e; margin-top: 5px; font-weight: bold;">✅ ${config.description}</div>
+                </div>
+            `
+        };
+    }
+
+    // ========== FUTURES INDICI (Contract-based) ==========
+    else if (config.type === 'futures_contract') {
+        // Formula: Contract Size = Risk Amount / (SL in Punti × Moltiplicatore)
+        const contracts = riskAmount / (slPips * config.contractMultiplier);
+        const totalRiskExposure = slPips * config.contractMultiplier * contracts;
+        
+        result = {
+            positionSize: contracts.toFixed(2),
+            unit: 'Contratti',
+            riskAmount: riskAmount.toFixed(2),
+            totalExposure: totalRiskExposure.toFixed(2),
+            currency: config.name.includes('DAX') ? '€' : '$',
+            details: `
+                <div style="margin-top: 8px; font-size: 0.95em;">
+                    <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)}${config.name.includes('DAX') ? '€' : '$'}</div>
+                    <div>📊 Esposizione SL: ${totalRiskExposure.toFixed(2)}${config.name.includes('DAX') ? '€' : '$'}</div>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
+                        <strong>${config.name}</strong><br>
+                        SL: ${slPips} punti × ${config.contractMultiplier}${config.name.includes('DAX') ? '€' : '$'}/punto = ${(slPips * config.contractMultiplier).toFixed(2)}${config.name.includes('DAX') ? '€' : '$'} per contratto<br>
+                        Contratti: ${contracts.toFixed(2)} (es: ${Math.floor(contracts)} interi + ${Math.round((contracts - Math.floor(contracts)) * 100)}% del micro)
+                    </div>
+                    <div style="font-size: 0.85em; color: #22c55e; margin-top: 5px; font-weight: bold;">⚠️ ${config.description}</div>
+                </div>
+            `
+        };
+    }
+
+    // ========== CRYPTO PERPETUI (Special handling) ==========
+    else if (config.type === 'crypto_perpetual') {
+        // Per i perpetui è più complesso: dipende dal prezzo corrente e dal leverage
+        // Formula semplificata: Position Size = Risk Amount / (SL in USD × Leverage)
+        // NB: SL qui è in USDT, non in unità della crypto
+        
+        const positionSize = (riskAmount / slPips).toFixed(4);  // Quantità di crypto
+        const totalRiskExposure = slPips;  // SL in USDT è già il rischio
+        
+        result = {
+            positionSize: positionSize,
+            unit: 'Contratti',
+            riskAmount: riskAmount.toFixed(2),
+            totalExposure: totalRiskExposure.toFixed(2),
+            currency: 'USDT',
+            details: `
+                <div style="margin-top: 8px; font-size: 0.95em;">
+                    <div>💰 Rischio Capitale: ${riskAmount.toFixed(2)} USDT</div>
+                    <div>📊 SL in USDT: ${totalRiskExposure.toFixed(2)} USDT</div>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 8px;">
+                        <strong>${config.name}</strong><br>
+                        Quantità: ${positionSize} ${config.name.includes('BTC') ? 'BTC' : 'ETH'}<br>
+                        SL: ${slPips} USDT (inserisci il valore USDT del tuo stop)<br>
+                        <strong style="color: #f59e0b;">⚠️ Nota:</strong> Inserisci SL in USDT, non in prezzo!
+                    </div>
+                    <div style="font-size: 0.85em; color: #f59e0b; margin-top: 5px; font-weight: bold;">⚠️ ${config.description}</div>
+                    <div style="font-size: 0.8em; background: #fef3c7; padding: 6px; border-radius: 4px; margin-top: 6px;">
+                        💡 <strong>Leverage:</strong> Puoi aumentare posizione con ${config.leverage}x. Questo calcolo è per 1x.
+                    </div>
+                </div>
+            `
+        };
+    }
+
+    // Visualizza risultato
+    document.getElementById('lotResultText').innerText = `${result.positionSize} ${result.unit}`;
+    document.getElementById('riskAmountText').innerHTML = result.details;
     document.getElementById('calcResult').style.display = 'block';
 }
 
