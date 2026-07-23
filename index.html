@@ -167,28 +167,24 @@
 </div>
 
 <!-- MODALE FOTO -->
-<div id="imgModal" class="modal" onclick="closeModal(event)">
+<div id="imgModal" class="modal">
     <span class="close-modal">&times;</span>
-    <img id="modalImg" src="" alt="Zoom">
+    <img id="modalImg" src="" alt="Trade screenshot">
 </div>
 
-<script src="app.js"></script>
-<script>
-    // Inizializza la data di oggi
-    document.getElementById('date').valueAsDate = new Date();
-
-    // Chiudi modale quando clicchi fuori dall'immagine
-    function closeModal(event) {
-        const modal = document.getElementById('imgModal');
-        if (event.target === modal) {
-            modal.style.display = 'none';
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
         }
     }
+</style>
 
-    // Previeni la chiusura quando clicchi sull'immagine
-    document.getElementById('modalImg').onclick = function(event) {
-        event.stopPropagation();
-    };
-</script>
+<script src="app.js"></script>
 </body>
 </html>
